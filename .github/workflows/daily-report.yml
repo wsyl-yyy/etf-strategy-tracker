@@ -1,5 +1,8 @@
 name: Daily encrypted ETF report
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 on:
   workflow_dispatch:
   schedule:

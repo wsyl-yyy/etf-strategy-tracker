@@ -26,7 +26,10 @@ FIELD_ALIASES = {
 
 def load_trades(config: TrackerConfig, csv_path: str | Path | None = None) -> list[Trade]:
     if _google_is_configured():
-        return _load_google_sheet_trades(config)
+        try:
+            return _load_google_sheet_trades(config)
+        except Exception as exc:
+            print(f"[WARN] Google Sheets 成交记录读取失败，改用本地 CSV: {exc}")
 
     if csv_path and Path(csv_path).exists():
         return _load_csv_trades(csv_path)
@@ -35,7 +38,11 @@ def load_trades(config: TrackerConfig, csv_path: str | Path | None = None) -> li
 
 
 def _google_is_configured() -> bool:
-    return bool(os.environ.get("GOOGLE_SERVICE_ACCOUNT_JSON") and os.environ.get("GOOGLE_SHEET_ID"))
+    credentials = (os.environ.get("GOOGLE_SERVICE_ACCOUNT_JSON") or "").strip()
+    sheet_id = (os.environ.get("GOOGLE_SHEET_ID") or "").strip()
+    if not credentials or not sheet_id:
+        return False
+    return credentials.startswith("{")
 
 
 def _load_google_sheet_trades(config: TrackerConfig) -> list[Trade]:
@@ -120,4 +127,3 @@ def _to_float(value: Any) -> float:
     if value is None or str(value).strip() == "":
         return 0.0
     return float(str(value).replace(",", "").strip())
-
