@@ -48,7 +48,7 @@ jobs:
           GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
           GOOGLE_SHEET_ID: ${{ secrets.GOOGLE_SHEET_ID }}
           GOOGLE_SHEET_RANGE: ${{ secrets.GOOGLE_SHEET_RANGE }}
-        run: python -m etf_tracker.cli --config config.json --trades data/sample_trades.csv --out docs/report.json
+        run: python -m etf_tracker.cli --config config.json --trades data/sample_trades.csv --out docs/report.json --html-template docs/index.html --html-out docs/index.html
 
       - name: Publish to gh-pages
         uses: peaceiris/actions-gh-pages@v4

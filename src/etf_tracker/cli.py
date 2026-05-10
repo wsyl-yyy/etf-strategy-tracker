@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 import os
 from pathlib import Path
 
@@ -20,6 +21,8 @@ def main() -> None:
     parser.add_argument("--out", default="docs/report.json", help="Encrypted report JSON output.")
     parser.add_argument("--markdown-out", default="", help="Optional plaintext markdown output for local debugging.")
     parser.add_argument("--allow-plaintext", action="store_true", help="Allow writing plaintext markdown output.")
+    parser.add_argument("--html-template", default="", help="Optional HTML template containing __ENCRYPTED_REPORT_JSON__.")
+    parser.add_argument("--html-out", default="", help="Optional HTML output with embedded encrypted report.")
     args = parser.parse_args()
 
     config = load_config(args.config)
@@ -45,12 +48,22 @@ def main() -> None:
     payload = encrypt_report(markdown, password)
     write_encrypted_report(payload, args.out)
 
+    if args.html_template and args.html_out:
+        _write_embedded_html(payload, args.html_template, args.html_out)
+
 def _safe_load_history(symbol: str):
     try:
         return load_history(symbol)
     except Exception as exc:
         print(f"[WARN] {symbol} 行情数据获取失败: {exc}")
         return []
+
+
+def _write_embedded_html(payload: dict[str, object], template_path: str, out_path: str) -> None:
+    template = Path(template_path).read_text(encoding="utf-8")
+    embedded = json.dumps(payload, ensure_ascii=False)
+    html = template.replace("__ENCRYPTED_REPORT_JSON__", embedded, 1)
+    Path(out_path).write_text(html, encoding="utf-8")
 
 
 if __name__ == "__main__":
