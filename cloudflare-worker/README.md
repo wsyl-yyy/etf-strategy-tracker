@@ -4,6 +4,9 @@
 
 - `POST /trade`：接收 Pages 页面提交的成交，写入 Cloudflare KV，并触发 GitHub Actions 刷新日报。
 - `GET /trades`：给 GitHub Actions 读取全部成交记录。
+- `POST /trades/manage`：输入提交密码后读取成交记录，供 Pages 页面管理使用。
+- `PUT /trade/:id`：修改一条成交，并触发日报刷新。
+- `DELETE /trade/:id`：删除一条成交，并触发日报刷新。
 
 ## 需要创建的资源
 

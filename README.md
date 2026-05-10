@@ -28,6 +28,7 @@ tests/                              测试
 现在推荐使用 `GitHub Pages + Cloudflare Worker + KV`：
 
 - 手机在同一个 Pages 日报页里查看日报和提交成交。
+- 输入提交密码后，可以在页面里加载、修改、删除已有成交。
 - 成交记录保存在 Cloudflare KV，不进入公开仓库。
 - Worker 收到成交后触发 GitHub Actions，日报会自动刷新。
 - 本机不需要 24 小时在线。

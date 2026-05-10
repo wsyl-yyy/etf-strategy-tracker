@@ -107,6 +107,32 @@
         grid-template-columns: repeat(2, minmax(0, 1fr));
         gap: 12px;
       }
+      .trade-list {
+        display: grid;
+        gap: 12px;
+        margin-top: 12px;
+      }
+      .trade-card {
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        padding: 12px;
+      }
+      .trade-card-title {
+        margin-bottom: 10px;
+        color: var(--muted);
+        font-size: 14px;
+      }
+      .actions {
+        display: flex;
+        gap: 10px;
+        margin-top: 12px;
+      }
+      button.secondary {
+        background: #334155;
+      }
+      button.danger-btn {
+        background: var(--danger);
+      }
       .full {
         grid-column: 1 / -1;
       }
@@ -141,7 +167,8 @@
       }
       @media (max-width: 560px) {
         .row,
-        .grid {
+        .grid,
+        .actions {
           grid-template-columns: 1fr;
           flex-direction: column;
         }
@@ -234,6 +261,18 @@
           <option value="风控"></option>
         </datalist>
       </section>
+
+      <section class="panel" id="manage-panel">
+        <h2>成交管理</h2>
+        <form id="manage-form">
+          <div class="row">
+            <input id="manage-password" type="password" autocomplete="current-password" placeholder="提交密码" required />
+            <button id="load-trades" type="submit">加载记录</button>
+          </div>
+        </form>
+        <div class="message" id="manage-message"></div>
+        <div class="trade-list" id="trade-list"></div>
+      </section>
     </main>
 
     <script id="embedded-report" type="application/json">__ENCRYPTED_REPORT_JSON__</script>
@@ -246,7 +285,12 @@
       const tradeForm = document.getElementById("trade-form");
       const tradeMessage = document.getElementById("trade-message");
       const submitTradeButton = document.getElementById("submit-trade");
+      const manageForm = document.getElementById("manage-form");
+      const manageMessage = document.getElementById("manage-message");
+      const loadTradesButton = document.getElementById("load-trades");
+      const tradeList = document.getElementById("trade-list");
       let encryptedReport = null;
+      let currentManagePassword = "";
 
       async function loadReport() {
         try {
@@ -385,8 +429,8 @@
           .slice(0, 10);
         document.getElementById("trade-date").value = today;
 
-        const { tradeSubmitUrl } = readWorkerConfig();
-        if (!tradeSubmitUrl) {
+        const urls = workerUrls();
+        if (!urls.tradeSubmitUrl) {
           submitTradeButton.disabled = true;
           tradeMessage.className = "message error";
           tradeMessage.textContent = "成交回填尚未配置 Worker 地址。";
@@ -401,7 +445,7 @@
 
           try {
             const payload = collectTradePayload();
-            const response = await fetch(tradeSubmitUrl, {
+            const response = await fetch(urls.tradeSubmitUrl, {
               method: "POST",
               mode: "cors",
               headers: { "Content-Type": "application/json" },
@@ -425,6 +469,144 @@
         });
       }
 
+      function initTradeManagement() {
+        const urls = workerUrls();
+        if (!urls.manageUrl) {
+          loadTradesButton.disabled = true;
+          manageMessage.className = "message error";
+          manageMessage.textContent = "成交管理尚未配置 Worker 地址。";
+          return;
+        }
+
+        manageForm.addEventListener("submit", async (event) => {
+          event.preventDefault();
+          currentManagePassword = document.getElementById("manage-password").value;
+          await loadManagedTrades();
+        });
+      }
+
+      async function loadManagedTrades() {
+        const urls = workerUrls();
+        manageMessage.className = "message";
+        manageMessage.textContent = "正在加载...";
+        tradeList.innerHTML = "";
+        loadTradesButton.disabled = true;
+
+        try {
+          const result = await requestJson(urls.manageUrl, {
+            method: "POST",
+            body: { submitPassword: currentManagePassword },
+          });
+          renderTradeList(result.trades || []);
+          manageMessage.className = "message success";
+          manageMessage.textContent = "成交记录已加载。";
+        } catch (error) {
+          manageMessage.className = "message error";
+          manageMessage.textContent = error.message;
+        } finally {
+          loadTradesButton.disabled = false;
+        }
+      }
+
+      function renderTradeList(trades) {
+        tradeList.innerHTML = "";
+        if (!trades.length) {
+          tradeList.innerHTML = '<div class="muted">暂无成交记录。</div>';
+          return;
+        }
+
+        for (const trade of trades) {
+          const card = document.createElement("div");
+          card.className = "trade-card";
+          card.dataset.id = trade.id;
+          card.innerHTML = `
+            <div class="trade-card-title">${escapeHtml(trade.date || "")} · ${escapeHtml(trade.symbol || "")} · ${escapeHtml(trade.side || "")}</div>
+            <div class="grid">
+              <label>日期<input data-field="date" type="date" value="${attr(trade.date)}" required /></label>
+              <label>标的<input data-field="symbol" inputmode="numeric" value="${attr(trade.symbol)}" required /></label>
+              <label>方向<select data-field="side"><option value="买入">买入</option><option value="卖出">卖出</option></select></label>
+              <label>策略模块<input data-field="module" value="${attr(trade.module)}" /></label>
+              <label>成交价<input data-field="price" type="number" min="0" step="0.0001" inputmode="decimal" value="${attr(trade.price)}" required /></label>
+              <label>成交金额<input data-field="amount" type="number" min="0" step="0.01" inputmode="decimal" value="${attr(trade.amount)}" required /></label>
+              <label>成交份额<input data-field="shares" type="number" min="0" step="0.01" inputmode="decimal" value="${attr(trade.shares)}" required /></label>
+              <label>交易费用<input data-field="fee" type="number" min="0" step="0.01" inputmode="decimal" value="${attr(trade.fee || 0)}" /></label>
+              <label class="full">备注<textarea data-field="note">${escapeHtml(trade.note || "")}</textarea></label>
+            </div>
+            <div class="actions">
+              <button class="secondary save-trade" type="button">保存修改</button>
+              <button class="danger-btn delete-trade" type="button">删除</button>
+            </div>
+          `;
+          card.querySelector('[data-field="side"]').value = trade.side || "买入";
+          card.querySelector(".save-trade").addEventListener("click", () => saveManagedTrade(card));
+          card.querySelector(".delete-trade").addEventListener("click", () => deleteManagedTrade(card));
+          tradeList.appendChild(card);
+        }
+      }
+
+      async function saveManagedTrade(card) {
+        const urls = workerUrls();
+        const id = card.dataset.id;
+        manageMessage.className = "message";
+        manageMessage.textContent = "正在保存...";
+        try {
+          await requestJson(urls.tradeUrl(id), {
+            method: "PUT",
+            body: { ...collectCardTrade(card), submitPassword: currentManagePassword },
+          });
+          manageMessage.className = "message success";
+          manageMessage.textContent = "修改已保存，日报会自动刷新。";
+          await loadManagedTrades();
+        } catch (error) {
+          manageMessage.className = "message error";
+          manageMessage.textContent = error.message;
+        }
+      }
+
+      async function deleteManagedTrade(card) {
+        const urls = workerUrls();
+        const id = card.dataset.id;
+        manageMessage.className = "message";
+        manageMessage.textContent = "正在删除...";
+        try {
+          await requestJson(urls.tradeUrl(id), {
+            method: "DELETE",
+            body: { submitPassword: currentManagePassword },
+          });
+          manageMessage.className = "message success";
+          manageMessage.textContent = "成交已删除，日报会自动刷新。";
+          await loadManagedTrades();
+        } catch (error) {
+          manageMessage.className = "message error";
+          manageMessage.textContent = error.message;
+        }
+      }
+
+      async function requestJson(url, options) {
+        const response = await fetch(url, {
+          method: options.method,
+          mode: "cors",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(options.body),
+        });
+        const result = await response.json().catch(() => ({}));
+        if (!response.ok || result.ok === false) {
+          throw new Error(result.error || "请求失败。");
+        }
+        return result;
+      }
+
+      function workerUrls() {
+        const { tradeSubmitUrl } = readWorkerConfig();
+        if (!tradeSubmitUrl) return { tradeSubmitUrl: "", manageUrl: "", tradeUrl: () => "" };
+        const baseUrl = tradeSubmitUrl.endsWith("/trade") ? tradeSubmitUrl.slice(0, -"/trade".length) : tradeSubmitUrl.replace(/\/$/, "");
+        return {
+          tradeSubmitUrl,
+          manageUrl: `${baseUrl}/trades/manage`,
+          tradeUrl: (id) => `${baseUrl}/trade/${encodeURIComponent(id)}`,
+        };
+      }
+
       function collectTradePayload() {
         return {
           submitPassword: document.getElementById("submit-password").value,
@@ -440,9 +622,27 @@
         };
       }
 
+      function collectCardTrade(card) {
+        return {
+          date: card.querySelector('[data-field="date"]').value,
+          symbol: card.querySelector('[data-field="symbol"]').value.trim(),
+          side: card.querySelector('[data-field="side"]').value,
+          module: card.querySelector('[data-field="module"]').value.trim(),
+          price: Number(card.querySelector('[data-field="price"]').value),
+          amount: Number(card.querySelector('[data-field="amount"]').value),
+          shares: Number(card.querySelector('[data-field="shares"]').value),
+          fee: Number(card.querySelector('[data-field="fee"]').value || 0),
+          note: card.querySelector('[data-field="note"]').value.trim(),
+        };
+      }
+
       function numberValue(id) {
         const value = document.getElementById(id).value;
         return value === "" ? 0 : Number(value);
+      }
+
+      function attr(value) {
+        return escapeHtml(String(value ?? ""));
       }
 
       document.getElementById("decrypt").addEventListener("click", decryptReport);
@@ -451,6 +651,7 @@
       });
       loadReport();
       initTradeForm();
+      initTradeManagement();
     </script>
   </body>
 </html>
