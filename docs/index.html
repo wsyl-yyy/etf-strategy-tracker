@@ -13,8 +13,9 @@
         --muted: #65717f;
         --line: #dde3ea;
         --accent: #0f766e;
-        --warn: #a16207;
+        --accent-dark: #115e59;
         --danger: #b91c1c;
+        --ok: #047857;
       }
       * {
         box-sizing: border-box;
@@ -39,29 +40,32 @@
         font-size: 28px;
         letter-spacing: 0;
       }
-      .muted {
+      h2 {
+        margin: 0 0 12px;
+        font-size: 20px;
+      }
+      label {
+        display: grid;
+        gap: 6px;
         color: var(--muted);
         font-size: 14px;
       }
-      .unlock,
-      article {
-        background: var(--panel);
-        border: 1px solid var(--line);
-        border-radius: 8px;
-        padding: 16px;
-      }
-      .row {
-        display: flex;
-        gap: 10px;
-        margin-top: 12px;
-      }
-      input {
+      input,
+      select,
+      textarea {
+        width: 100%;
         min-width: 0;
-        flex: 1;
         border: 1px solid var(--line);
         border-radius: 6px;
+        background: #fff;
+        color: var(--text);
+        font: inherit;
         font-size: 16px;
-        padding: 11px 12px;
+        padding: 10px 11px;
+      }
+      textarea {
+        min-height: 78px;
+        resize: vertical;
       }
       button {
         border: 0;
@@ -71,14 +75,53 @@
         font-size: 16px;
         padding: 11px 16px;
       }
-      .error {
-        color: var(--danger);
+      button:disabled {
+        background: #9aa6b2;
+      }
+      button:active:not(:disabled) {
+        background: var(--accent-dark);
+      }
+      .muted {
+        color: var(--muted);
+        font-size: 14px;
+      }
+      .panel,
+      article {
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        padding: 16px;
+      }
+      .panel + .panel,
+      .panel + article,
+      article + .panel {
+        margin-top: 16px;
+      }
+      .row {
+        display: flex;
+        gap: 10px;
+        margin-top: 12px;
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 12px;
+      }
+      .full {
+        grid-column: 1 / -1;
+      }
+      .message {
         margin-top: 10px;
         min-height: 22px;
       }
+      .error {
+        color: var(--danger);
+      }
+      .success {
+        color: var(--ok);
+      }
       article {
         display: none;
-        margin-top: 16px;
         overflow-wrap: anywhere;
       }
       article h1 {
@@ -97,7 +140,9 @@
         color: var(--accent);
       }
       @media (max-width: 560px) {
-        .row {
+        .row,
+        .grid {
+          grid-template-columns: 1fr;
           flex-direction: column;
         }
         button {
@@ -113,24 +158,94 @@
         <div class="muted" id="meta">加载加密报告中...</div>
       </header>
 
-      <section class="unlock" id="unlock">
-        <div>请输入日报密码。密码只在本机浏览器中用于解密，不会发送到服务器。</div>
+      <section class="panel" id="unlock">
+        <h2>查看日报</h2>
+        <div class="muted">输入日报密码后在本机浏览器解密，密码不会发送到服务器。</div>
         <div class="row">
           <input id="password" type="password" autocomplete="current-password" placeholder="日报密码" />
           <button id="decrypt">解密查看</button>
         </div>
-        <div class="error" id="error"></div>
+        <div class="message error" id="error"></div>
       </section>
 
       <article id="report"></article>
+
+      <section class="panel" id="trade-panel">
+        <h2>成交回填</h2>
+        <form id="trade-form">
+          <div class="grid">
+            <label>
+              日期
+              <input id="trade-date" name="date" type="date" required />
+            </label>
+            <label>
+              标的
+              <input id="trade-symbol" name="symbol" list="symbol-list" inputmode="numeric" placeholder="563360" required />
+            </label>
+            <label>
+              方向
+              <select id="trade-side" name="side" required>
+                <option value="买入">买入</option>
+                <option value="卖出">卖出</option>
+              </select>
+            </label>
+            <label>
+              策略模块
+              <input id="trade-module" name="module" list="module-list" placeholder="A500网格" />
+            </label>
+            <label>
+              成交价
+              <input id="trade-price" name="price" type="number" min="0" step="0.0001" inputmode="decimal" required />
+            </label>
+            <label>
+              成交金额
+              <input id="trade-amount" name="amount" type="number" min="0" step="0.01" inputmode="decimal" required />
+            </label>
+            <label>
+              成交份额
+              <input id="trade-shares" name="shares" type="number" min="0" step="0.01" inputmode="decimal" required />
+            </label>
+            <label>
+              交易费用
+              <input id="trade-fee" name="fee" type="number" min="0" step="0.01" inputmode="decimal" value="0" />
+            </label>
+            <label class="full">
+              提交密码
+              <input id="submit-password" name="submitPassword" type="password" autocomplete="current-password" required />
+            </label>
+            <label class="full">
+              备注
+              <textarea id="trade-note" name="note" placeholder="可选"></textarea>
+            </label>
+          </div>
+          <div class="row">
+            <button id="submit-trade" type="submit">提交成交</button>
+          </div>
+          <div class="message" id="trade-message"></div>
+        </form>
+        <datalist id="symbol-list">
+          <option value="563360"></option>
+          <option value="588000"></option>
+        </datalist>
+        <datalist id="module-list">
+          <option value="A500网格"></option>
+          <option value="A500底仓"></option>
+          <option value="科创50分批"></option>
+          <option value="风控"></option>
+        </datalist>
+      </section>
     </main>
 
     <script id="embedded-report" type="application/json">__ENCRYPTED_REPORT_JSON__</script>
+    <script id="worker-config" type="application/json">__WORKER_CONFIG_JSON__</script>
     <script>
       const meta = document.getElementById("meta");
       const errorBox = document.getElementById("error");
       const reportNode = document.getElementById("report");
       const unlockNode = document.getElementById("unlock");
+      const tradeForm = document.getElementById("trade-form");
+      const tradeMessage = document.getElementById("trade-message");
+      const submitTradeButton = document.getElementById("submit-trade");
       let encryptedReport = null;
 
       async function loadReport() {
@@ -254,11 +369,88 @@
           .replace(/'/g, "&#039;");
       }
 
+      function readWorkerConfig() {
+        const raw = document.getElementById("worker-config")?.textContent?.trim();
+        if (!raw || raw === "__WORKER_CONFIG_JSON__") return { tradeSubmitUrl: "" };
+        try {
+          return JSON.parse(raw);
+        } catch (error) {
+          return { tradeSubmitUrl: "" };
+        }
+      }
+
+      function initTradeForm() {
+        const today = new Date(Date.now() - new Date().getTimezoneOffset() * 60000)
+          .toISOString()
+          .slice(0, 10);
+        document.getElementById("trade-date").value = today;
+
+        const { tradeSubmitUrl } = readWorkerConfig();
+        if (!tradeSubmitUrl) {
+          submitTradeButton.disabled = true;
+          tradeMessage.className = "message error";
+          tradeMessage.textContent = "成交回填尚未配置 Worker 地址。";
+          return;
+        }
+
+        tradeForm.addEventListener("submit", async (event) => {
+          event.preventDefault();
+          tradeMessage.className = "message";
+          tradeMessage.textContent = "正在提交...";
+          submitTradeButton.disabled = true;
+
+          try {
+            const payload = collectTradePayload();
+            const response = await fetch(tradeSubmitUrl, {
+              method: "POST",
+              mode: "cors",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(payload),
+            });
+            const result = await response.json().catch(() => ({}));
+            if (!response.ok || result.ok === false) {
+              throw new Error(result.error || "提交失败。");
+            }
+            tradeMessage.className = "message success";
+            tradeMessage.textContent = "提交成功，日报会自动刷新。";
+            tradeForm.reset();
+            document.getElementById("trade-date").value = today;
+            document.getElementById("trade-fee").value = "0";
+          } catch (error) {
+            tradeMessage.className = "message error";
+            tradeMessage.textContent = error.message;
+          } finally {
+            submitTradeButton.disabled = false;
+          }
+        });
+      }
+
+      function collectTradePayload() {
+        return {
+          submitPassword: document.getElementById("submit-password").value,
+          date: document.getElementById("trade-date").value,
+          symbol: document.getElementById("trade-symbol").value.trim(),
+          side: document.getElementById("trade-side").value,
+          module: document.getElementById("trade-module").value.trim(),
+          price: numberValue("trade-price"),
+          amount: numberValue("trade-amount"),
+          shares: numberValue("trade-shares"),
+          fee: numberValue("trade-fee"),
+          note: document.getElementById("trade-note").value.trim(),
+        };
+      }
+
+      function numberValue(id) {
+        const value = document.getElementById(id).value;
+        return value === "" ? 0 : Number(value);
+      }
+
       document.getElementById("decrypt").addEventListener("click", decryptReport);
       document.getElementById("password").addEventListener("keydown", (event) => {
         if (event.key === "Enter") decryptReport();
       });
       loadReport();
+      initTradeForm();
     </script>
   </body>
 </html>

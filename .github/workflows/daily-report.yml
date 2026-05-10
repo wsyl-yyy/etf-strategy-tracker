@@ -5,6 +5,9 @@ env:
 
 on:
   workflow_dispatch:
+  repository_dispatch:
+    types:
+      - trade-submitted
   push:
     branches:
       - main
@@ -48,10 +51,12 @@ jobs:
         env:
           PYTHONPATH: src
           REPORT_PASSWORD: ${{ secrets.REPORT_PASSWORD }}
+          WORKER_TRADES_URL: ${{ secrets.WORKER_TRADES_URL }}
+          WORKER_READ_TOKEN: ${{ secrets.WORKER_READ_TOKEN }}
           GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
           GOOGLE_SHEET_ID: ${{ secrets.GOOGLE_SHEET_ID }}
           GOOGLE_SHEET_RANGE: ${{ secrets.GOOGLE_SHEET_RANGE }}
-        run: python -m etf_tracker.cli --config config.json --trades data/sample_trades.csv --out docs/report.json --html-template docs/index.html --html-out docs/index.html
+        run: python -m etf_tracker.cli --config config.json --trades data/sample_trades.csv --out docs/report.json --html-template docs/index.html --html-out docs/index.html --worker-trades-url "$WORKER_TRADES_URL"
 
       - name: Publish to gh-pages
         uses: peaceiris/actions-gh-pages@v4

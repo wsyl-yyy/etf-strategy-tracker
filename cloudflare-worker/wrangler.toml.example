@@ -1,0 +1,7 @@
+name = "etf-trade-worker"
+main = "worker.js"
+compatibility_date = "2026-05-10"
+
+[[kv_namespaces]]
+binding = "TRADES"
+id = "replace_with_kv_namespace_id"

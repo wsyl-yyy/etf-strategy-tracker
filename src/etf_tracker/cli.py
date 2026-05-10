@@ -23,6 +23,8 @@ def main() -> None:
     parser.add_argument("--allow-plaintext", action="store_true", help="Allow writing plaintext markdown output.")
     parser.add_argument("--html-template", default="", help="Optional HTML template containing __ENCRYPTED_REPORT_JSON__.")
     parser.add_argument("--html-out", default="", help="Optional HTML output with embedded encrypted report.")
+    parser.add_argument("--worker-trades-url", default="", help="Worker /trades URL; used to derive the page submit URL.")
+    parser.add_argument("--worker-submit-url", default="", help="Worker /trade URL for the embedded page trade form.")
     args = parser.parse_args()
 
     config = load_config(args.config)
@@ -49,7 +51,8 @@ def main() -> None:
     write_encrypted_report(payload, args.out)
 
     if args.html_template and args.html_out:
-        _write_embedded_html(payload, args.html_template, args.html_out)
+        submit_url = args.worker_submit_url or _derive_worker_submit_url(args.worker_trades_url)
+        _write_embedded_html(payload, args.html_template, args.html_out, submit_url)
 
 def _safe_load_history(symbol: str):
     try:
@@ -59,10 +62,21 @@ def _safe_load_history(symbol: str):
         return []
 
 
-def _write_embedded_html(payload: dict[str, object], template_path: str, out_path: str) -> None:
+def _derive_worker_submit_url(trades_url: str) -> str:
+    trades_url = trades_url.strip()
+    if not trades_url:
+        return ""
+    if trades_url.endswith("/trades"):
+        return trades_url[: -len("/trades")] + "/trade"
+    return trades_url.rstrip("/") + "/trade"
+
+
+def _write_embedded_html(payload: dict[str, object], template_path: str, out_path: str, worker_submit_url: str = "") -> None:
     template = Path(template_path).read_text(encoding="utf-8")
     embedded = json.dumps(payload, ensure_ascii=False)
     html = template.replace("__ENCRYPTED_REPORT_JSON__", embedded, 1)
+    worker_config = json.dumps({"tradeSubmitUrl": worker_submit_url}, ensure_ascii=False)
+    html = html.replace("__WORKER_CONFIG_JSON__", worker_config, 1)
     Path(out_path).write_text(html, encoding="utf-8")
 
 

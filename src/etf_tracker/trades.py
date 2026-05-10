@@ -3,6 +3,7 @@ from __future__ import annotations
 import csv
 import json
 import os
+import urllib.request
 from datetime import date, datetime
 from pathlib import Path
 from typing import Any
@@ -25,6 +26,12 @@ FIELD_ALIASES = {
 
 
 def load_trades(config: TrackerConfig, csv_path: str | Path | None = None) -> list[Trade]:
+    if _worker_is_configured():
+        try:
+            return _load_worker_trades()
+        except Exception as exc:
+            print(f"[WARN] Worker 成交记录读取失败，继续尝试其他来源: {exc}")
+
     if _google_is_configured():
         try:
             return _load_google_sheet_trades(config)
@@ -35,6 +42,33 @@ def load_trades(config: TrackerConfig, csv_path: str | Path | None = None) -> li
         return _load_csv_trades(csv_path)
 
     return []
+
+
+def _worker_is_configured() -> bool:
+    return bool((os.environ.get("WORKER_TRADES_URL") or "").strip() and (os.environ.get("WORKER_READ_TOKEN") or "").strip())
+
+
+def _load_worker_trades() -> list[Trade]:
+    url = os.environ["WORKER_TRADES_URL"].strip()
+    token = os.environ["WORKER_READ_TOKEN"].strip()
+    request = urllib.request.Request(
+        url,
+        headers={
+            "Accept": "application/json",
+            "Authorization": f"Bearer {token}",
+            "User-Agent": "etf-strategy-tracker",
+        },
+    )
+    with urllib.request.urlopen(request, timeout=20) as response:
+        payload = json.loads(response.read().decode("utf-8"))
+    return _trades_from_worker_payload(payload)
+
+
+def _trades_from_worker_payload(payload: Any) -> list[Trade]:
+    rows = payload.get("trades", payload) if isinstance(payload, dict) else payload
+    if not isinstance(rows, list):
+        raise ValueError("Worker 返回格式不是成交记录列表。")
+    return [_row_to_trade(row, list(row.keys())) for row in rows if isinstance(row, dict)]
 
 
 def _google_is_configured() -> bool:
