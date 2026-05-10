@@ -1,0 +1,258 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>ETF量化策略日报</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --bg: #f6f7f9;
+        --panel: #ffffff;
+        --text: #17202a;
+        --muted: #65717f;
+        --line: #dde3ea;
+        --accent: #0f766e;
+        --warn: #a16207;
+        --danger: #b91c1c;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--text);
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        line-height: 1.55;
+      }
+      main {
+        max-width: 860px;
+        margin: 0 auto;
+        padding: 24px 16px 48px;
+      }
+      header {
+        margin-bottom: 18px;
+      }
+      h1 {
+        margin: 0 0 8px;
+        font-size: 28px;
+        letter-spacing: 0;
+      }
+      .muted {
+        color: var(--muted);
+        font-size: 14px;
+      }
+      .unlock,
+      article {
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        padding: 16px;
+      }
+      .row {
+        display: flex;
+        gap: 10px;
+        margin-top: 12px;
+      }
+      input {
+        min-width: 0;
+        flex: 1;
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        font-size: 16px;
+        padding: 11px 12px;
+      }
+      button {
+        border: 0;
+        border-radius: 6px;
+        background: var(--accent);
+        color: #fff;
+        font-size: 16px;
+        padding: 11px 16px;
+      }
+      .error {
+        color: var(--danger);
+        margin-top: 10px;
+        min-height: 22px;
+      }
+      article {
+        display: none;
+        margin-top: 16px;
+        overflow-wrap: anywhere;
+      }
+      article h1 {
+        font-size: 24px;
+      }
+      article h2 {
+        margin-top: 24px;
+        border-bottom: 1px solid var(--line);
+        padding-bottom: 6px;
+        font-size: 19px;
+      }
+      article li {
+        margin: 7px 0;
+      }
+      strong {
+        color: var(--accent);
+      }
+      @media (max-width: 560px) {
+        .row {
+          flex-direction: column;
+        }
+        button {
+          width: 100%;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header>
+        <h1>ETF量化策略日报</h1>
+        <div class="muted" id="meta">加载加密报告中...</div>
+      </header>
+
+      <section class="unlock" id="unlock">
+        <div>请输入日报密码。密码只在本机浏览器中用于解密，不会发送到服务器。</div>
+        <div class="row">
+          <input id="password" type="password" autocomplete="current-password" placeholder="日报密码" />
+          <button id="decrypt">解密查看</button>
+        </div>
+        <div class="error" id="error"></div>
+      </section>
+
+      <article id="report"></article>
+    </main>
+
+    <script>
+      const meta = document.getElementById("meta");
+      const errorBox = document.getElementById("error");
+      const reportNode = document.getElementById("report");
+      const unlockNode = document.getElementById("unlock");
+      let encryptedReport = null;
+
+      async function loadReport() {
+        try {
+          const response = await fetch("report.json", { cache: "no-store" });
+          if (!response.ok) throw new Error("日报尚未生成。");
+          encryptedReport = await response.json();
+          meta.textContent = `报告更新时间：${encryptedReport.updated_at || "未知"}`;
+        } catch (error) {
+          meta.textContent = "无法加载报告";
+          errorBox.textContent = error.message;
+        }
+      }
+
+      async function decryptReport() {
+        errorBox.textContent = "";
+        if (!encryptedReport) {
+          errorBox.textContent = "报告还没有加载完成。";
+          return;
+        }
+        const password = document.getElementById("password").value;
+        if (!password) {
+          errorBox.textContent = "请输入密码。";
+          return;
+        }
+        try {
+          const markdown = await decryptPayload(encryptedReport, password);
+          reportNode.innerHTML = renderMarkdown(markdown);
+          reportNode.style.display = "block";
+          unlockNode.style.display = "none";
+        } catch (error) {
+          errorBox.textContent = "密码错误或报告已损坏，无法解密。";
+        }
+      }
+
+      async function decryptPayload(payload, password) {
+        const salt = fromBase64(payload.salt);
+        const iv = fromBase64(payload.iv);
+        const ciphertext = fromBase64(payload.ciphertext);
+        const baseKey = await crypto.subtle.importKey(
+          "raw",
+          new TextEncoder().encode(password),
+          "PBKDF2",
+          false,
+          ["deriveKey"]
+        );
+        const key = await crypto.subtle.deriveKey(
+          {
+            name: "PBKDF2",
+            salt,
+            iterations: payload.iterations,
+            hash: "SHA-256",
+          },
+          baseKey,
+          { name: "AES-GCM", length: 256 },
+          false,
+          ["decrypt"]
+        );
+        const plaintext = await crypto.subtle.decrypt({ name: "AES-GCM", iv }, key, ciphertext);
+        return new TextDecoder().decode(plaintext);
+      }
+
+      function fromBase64(value) {
+        const binary = atob(value);
+        const bytes = new Uint8Array(binary.length);
+        for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i);
+        return bytes;
+      }
+
+      function renderMarkdown(markdown) {
+        const lines = markdown.split(/\r?\n/);
+        let html = "";
+        let inList = false;
+        for (const line of lines) {
+          if (line.startsWith("# ")) {
+            if (inList) {
+              html += "</ul>";
+              inList = false;
+            }
+            html += `<h1>${inline(line.slice(2))}</h1>`;
+          } else if (line.startsWith("## ")) {
+            if (inList) {
+              html += "</ul>";
+              inList = false;
+            }
+            html += `<h2>${inline(line.slice(3))}</h2>`;
+          } else if (line.startsWith("- ")) {
+            if (!inList) {
+              html += "<ul>";
+              inList = true;
+            }
+            html += `<li>${inline(line.slice(2))}</li>`;
+          } else if (line.trim()) {
+            if (inList) {
+              html += "</ul>";
+              inList = false;
+            }
+            html += `<p>${inline(line)}</p>`;
+          }
+        }
+        if (inList) html += "</ul>";
+        return html;
+      }
+
+      function inline(text) {
+        return escapeHtml(text).replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>");
+      }
+
+      function escapeHtml(text) {
+        return text
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;")
+          .replace(/'/g, "&#039;");
+      }
+
+      document.getElementById("decrypt").addEventListener("click", decryptReport);
+      document.getElementById("password").addEventListener("keydown", (event) => {
+        if (event.key === "Enter") decryptReport();
+      });
+      loadReport();
+    </script>
+  </body>
+</html>
+

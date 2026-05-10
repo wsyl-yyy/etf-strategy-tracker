@@ -1,0 +1,55 @@
+{
+  "timezone": "Asia/Shanghai",
+  "report_title": "ETF量化策略日报",
+  "total_capital": 10000,
+  "funds": {
+    "a500_grid": 5000,
+    "kc50_wave": 2000,
+    "reserve": 3000
+  },
+  "symbols": {
+    "a500": {
+      "code": "563360",
+      "name": "华泰柏瑞中证A500ETF",
+      "grid_base_price": null,
+      "grid_spacing": 0.058,
+      "grid_lower": null,
+      "grid_upper": null,
+      "base_position_amount": 1000,
+      "grid_buy_amount": 600,
+      "max_grid_buys": 5
+    },
+    "kc50": {
+      "code": "588000",
+      "name": "华夏上证科创板50成份ETF",
+      "wave_pool": 2000,
+      "buy_steps": [
+        {"drawdown": 0.22, "amount": 400},
+        {"drawdown": 0.30, "amount": 500},
+        {"drawdown": 0.38, "amount": 500},
+        {"drawdown": 0.45, "amount": 600}
+      ]
+    }
+  },
+  "valuation": {
+    "a500_source": "待填写",
+    "kc50_source": "待填写",
+    "mode": "manual_or_public",
+    "note": "估值分位自动源不稳定时，日报仅提示人工复核。"
+  },
+  "google_sheet": {
+    "range": "Form Responses 1!A:Z",
+    "header_aliases": {
+      "date": ["日期", "信号确认日", "成交日期", "Timestamp"],
+      "symbol": ["标的", "代码", "ETF代码"],
+      "side": ["方向", "买卖方向", "买入/卖出"],
+      "module": ["策略模块", "模块"],
+      "price": ["成交价", "执行价格"],
+      "amount": ["成交金额", "执行金额", "金额"],
+      "shares": ["成交份额", "执行份额", "份额"],
+      "fee": ["交易费用", "费用", "交易成本"],
+      "note": ["备注", "复盘备注"]
+    }
+  }
+}
+
