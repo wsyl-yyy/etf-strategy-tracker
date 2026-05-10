@@ -90,6 +90,12 @@ $env:PYTHONPATH='src'
 
 ## 手机成交回填格式
 
+推荐使用 Google 表单。可以复制 `scripts/create_google_form.gs` 到 Google Apps Script 中运行一次，它会自动创建表单和绑定表格，并在日志里输出：
+
+- Form public URL：手机提交成交记录用。
+- Sheet URL：查看成交记录用。
+- GOOGLE_SHEET_ID：填入 GitHub Secret。
+
 如果暂时不用 Google 表单，也可以按 CSV 表头手工维护：
 
 ```csv
