@@ -5,6 +5,9 @@ env:
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - main
   schedule:
     - cron: "10 8 * * 1-5"
 
