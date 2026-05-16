@@ -136,7 +136,7 @@ Never write actual secret values into tracked files.
 - Market data loading order is AKShare Eastmoney ETF history, Eastmoney public kline, then AKShare Sina ETF history.
 - Eastmoney market IDs are inferred from ETF code: `5/6/9` prefixes use Shanghai `1`, all others use Shenzhen `0`.
 - Sina ETF history uses `sh`/`sz` prefixed symbols and has no traded amount; amount is stored as `0`.
-- A500 grid parameters are generated in the strategy layer. With 563360 bottom-position buys, the actual grid base is weighted bottom-position cost `(amount + fee) / shares`; with other live 563360 holdings, it falls back to current position average cost. Without bottom-position buys or live 563360 holdings, the suggested base uses a conservative technical estimate capped at the latest close. Actual upper edge is base price times `1.15`; lower edge is base price times `(1 - grid_spacing * max_grid_buys)`.
+- A500 grid parameters are generated in the strategy layer. With live 563360 holdings, the actual grid base is weighted bottom-position cost `(amount + fee) / shares`, falling back to current position average cost when no bottom-position buy is tagged. When current 563360 holdings are zero, the report shows suggested grid parameters only: base is the latest available 20-day closing-price average, upper/lower bounds are base price times `1.18` and `0.82`, and suggested dynamic spacing is `max(3%, min(5.5%, 0.8 * 20-day ATR / latest close))` with a 4% fallback.
 - Before the first 588000 buy is triggered, the report shows an INFO reminder with the estimated first-buy trigger close, calculated from the latest 252 closing-price high and the first configured `buy_steps` drawdown.
 
 ## Operational Notes
