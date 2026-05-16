@@ -136,6 +136,8 @@ Never write actual secret values into tracked files.
 - Market data loading order is AKShare Eastmoney ETF history, Eastmoney public kline, then AKShare Sina ETF history.
 - Eastmoney market IDs are inferred from ETF code: `5/6/9` prefixes use Shanghai `1`, all others use Shenzhen `0`.
 - Sina ETF history uses `sh`/`sz` prefixed symbols and has no traded amount; amount is stored as `0`.
+- A500 grid parameters are generated in the strategy layer. Before a 563360 base-position buy exists, the report shows suggested parameters from the latest 20 closing prices only. After a base-position buy exists, the actual grid base is the base trade price, upper edge is base price times `1.15`, and lower edge is base price times `(1 - grid_spacing * max_grid_buys)`.
+- Before the first 588000 buy is triggered, the report shows an INFO reminder with the estimated first-buy trigger close, calculated from the latest 252 closing-price high and the first configured `buy_steps` drawdown.
 
 ## Operational Notes
 
