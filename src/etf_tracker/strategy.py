@@ -14,7 +14,7 @@ from .indicators import (
     moving_average,
     prior_moving_average,
 )
-from .models import PortfolioState, PriceBar, Trade
+from .models import PortfolioState, PriceBar
 from .valuation import valuation_status
 
 
@@ -274,12 +274,10 @@ def _a500_grid_parameters(
     grid_spacing: float,
     max_grid_buys: int,
 ) -> A500GridParameters:
-    base_trade = _a500_base_trade(config, portfolio)
-    if base_trade is not None:
-        base_price = _round_etf_price(base_trade.price)
-        source = f"实际：{base_trade.date} 底仓买入价"
-        if "底仓" not in base_trade.module:
-            source = f"实际：{base_trade.date} 首笔A500买入价"
+    actual = _a500_actual_base_price(config, portfolio)
+    if actual is not None:
+        base_price, source = actual
+        base_price = _round_etf_price(base_price)
         return A500GridParameters(
             base_price=base_price,
             lower=_round_etf_price(base_price * (1 - grid_spacing * max_grid_buys)),
@@ -288,29 +286,90 @@ def _a500_grid_parameters(
             is_actual=True,
         )
 
-    recent = bars[-20:] if len(bars) >= 20 else bars
-    base_price = _round_etf_price(max(item.close for item in recent))
+    base_price, source = _a500_suggested_base_price(bars, grid_spacing)
     return A500GridParameters(
         base_price=base_price,
         lower=_round_etf_price(base_price * (1 - grid_spacing * max_grid_buys)),
         upper=base_price,
-        source=f"建议：最近{len(recent)}个交易日收盘高点",
+        source=source,
         is_actual=False,
     )
 
 
-def _a500_base_trade(config: TrackerConfig, portfolio: PortfolioState) -> Trade | None:
+def _a500_actual_base_price(config: TrackerConfig, portfolio: PortfolioState) -> tuple[float, str] | None:
     buys = [trade for trade in portfolio.trades if trade.symbol == config.a500_code and trade.is_buy]
     base_buys = [trade for trade in buys if "底仓" in trade.module]
     if base_buys:
-        return base_buys[0]
-    if buys:
-        return buys[0]
+        shares = sum(trade.shares for trade in base_buys)
+        cost = sum(trade.amount + trade.fee for trade in base_buys)
+        if shares > 0 and cost > 0:
+            return cost / shares, "实际：A500底仓成交均价"
+
+    position = portfolio.positions.get(config.a500_code)
+    if position is not None and position.shares > 0 and position.avg_cost > 0:
+        return position.avg_cost, "实际：A500当前持仓均价"
+
     return None
+
+
+def _a500_suggested_base_price(bars: list[PriceBar], grid_spacing: float) -> tuple[float, str]:
+    latest_close = bars[-1].close
+    if len(bars) < 20:
+        return _floor_etf_price(latest_close), "建议：历史数据不足，使用最新收盘价"
+
+    ma20 = moving_average(bars, 20) or latest_close
+    ma60 = moving_average(bars, 60) or ma20
+    high20 = max(item.close for item in bars[-20:])
+    pullback_anchor = high20 * (1 - grid_spacing)
+    atr20 = _average_true_range(bars, 20)
+    volatility_anchor = latest_close - atr20 * 0.5 if atr20 is not None else latest_close
+    percentile = _price_percentile(bars, 252)
+    percentile_discount = grid_spacing * max(0.0, percentile - 0.5)
+    percentile_anchor = latest_close * (1 - percentile_discount)
+
+    anchors = [
+        (latest_close, 0.20),
+        (ma20, 0.25),
+        (ma60, 0.20),
+        (pullback_anchor, 0.25),
+        (volatility_anchor, 0.05),
+        (percentile_anchor, 0.05),
+    ]
+    base_price = sum(min(anchor, latest_close) * weight for anchor, weight in anchors)
+    base_price = max(0.0, min(latest_close, base_price))
+    return _floor_etf_price(base_price), "建议：技术估值综合，最高不超过最新收盘价"
+
+
+def _average_true_range(bars: list[PriceBar], window: int) -> float | None:
+    if len(bars) < window:
+        return None
+
+    values: list[float] = []
+    first_index = len(bars) - window
+    for index in range(first_index, len(bars)):
+        current = bars[index]
+        previous_close = bars[index - 1].close if index > 0 else current.close
+        values.append(
+            max(current.high - current.low, abs(current.high - previous_close), abs(current.low - previous_close))
+        )
+
+    return sum(values) / len(values) if values else None
+
+
+def _price_percentile(bars: list[PriceBar], lookback: int) -> float:
+    window = bars[-lookback:] if len(bars) >= lookback else bars
+    latest_close = bars[-1].close
+    if not window:
+        return 0.5
+    return sum(1 for item in window if item.close <= latest_close) / len(window)
 
 
 def _round_etf_price(value: float) -> float:
     return round(value + 1e-12, 3)
+
+
+def _floor_etf_price(value: float) -> float:
+    return int(max(0.0, value) * 1000 + 1e-12) / 1000
 
 
 def _reaches_threshold(value: float, threshold: float) -> bool:
