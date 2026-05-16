@@ -7,42 +7,65 @@
     <style>
       :root {
         color-scheme: light;
-        --bg: #f6f7f9;
+        --bg: #eef2f5;
         --panel: #ffffff;
+        --panel-soft: #f8fafc;
         --text: #17202a;
         --muted: #65717f;
-        --line: #dde3ea;
+        --line: #d9e1ea;
         --accent: #0f766e;
         --accent-dark: #115e59;
+        --accent-soft: #e0f2f1;
+        --info: #2563eb;
+        --warning: #b45309;
         --danger: #b91c1c;
+        --danger-soft: #fee2e2;
         --ok: #047857;
+        --shadow: 0 16px 40px rgba(15, 23, 42, 0.08);
       }
       * {
         box-sizing: border-box;
       }
+      [hidden] {
+        display: none !important;
+      }
       body {
         margin: 0;
-        background: var(--bg);
+        background:
+          linear-gradient(180deg, #f8fafc 0, var(--bg) 260px),
+          var(--bg);
         color: var(--text);
         font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
         line-height: 1.55;
       }
       main {
-        max-width: 860px;
+        max-width: 1040px;
         margin: 0 auto;
-        padding: 24px 16px 48px;
+        padding: 28px 16px 48px;
       }
-      header {
+      .app-header {
+        display: flex;
+        align-items: flex-end;
+        justify-content: space-between;
+        gap: 16px;
         margin-bottom: 18px;
       }
+      .eyebrow {
+        margin: 0 0 4px;
+        color: var(--accent);
+        font-size: 13px;
+        font-weight: 700;
+      }
       h1 {
-        margin: 0 0 8px;
-        font-size: 28px;
+        margin: 0;
+        font-size: 30px;
+        line-height: 1.2;
         letter-spacing: 0;
       }
       h2 {
-        margin: 0 0 12px;
-        font-size: 20px;
+        margin: 0;
+        font-size: 19px;
+        line-height: 1.25;
       }
       label {
         display: grid;
@@ -56,12 +79,18 @@
         width: 100%;
         min-width: 0;
         border: 1px solid var(--line);
-        border-radius: 6px;
+        border-radius: 7px;
         background: #fff;
         color: var(--text);
         font: inherit;
         font-size: 16px;
         padding: 10px 11px;
+      }
+      input:focus,
+      select:focus,
+      textarea:focus {
+        border-color: var(--accent);
+        outline: 3px solid rgba(15, 118, 110, 0.16);
       }
       textarea {
         min-height: 78px;
@@ -69,33 +98,73 @@
       }
       button {
         border: 0;
-        border-radius: 6px;
+        border-radius: 7px;
         background: var(--accent);
         color: #fff;
+        cursor: pointer;
         font-size: 16px;
+        font-weight: 650;
         padding: 11px 16px;
       }
       button:disabled {
+        cursor: not-allowed;
         background: #9aa6b2;
       }
       button:active:not(:disabled) {
         background: var(--accent-dark);
+      }
+      .status-pill {
+        max-width: 360px;
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        background: #fff;
+        color: var(--muted);
+        font-size: 13px;
+        padding: 7px 12px;
+        text-align: right;
+        box-shadow: 0 8px 24px rgba(15, 23, 42, 0.05);
       }
       .muted {
         color: var(--muted);
         font-size: 14px;
       }
       .panel,
+      .tab-panel,
       article {
         background: var(--panel);
         border: 1px solid var(--line);
         border-radius: 8px;
+        box-shadow: 0 1px 0 rgba(15, 23, 42, 0.03);
+      }
+      .panel,
+      .tab-panel {
         padding: 16px;
       }
-      .panel + .panel,
-      .panel + article,
-      article + .panel {
-        margin-top: 16px;
+      .panel-head {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 16px;
+        margin-bottom: 14px;
+      }
+      .panel-kicker {
+        margin: 0 0 4px;
+        color: var(--muted);
+        font-size: 13px;
+      }
+      .unlock-card {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(300px, 420px);
+        gap: 16px;
+        margin-bottom: 16px;
+        padding: 18px;
+        box-shadow: var(--shadow);
+      }
+      .unlock-copy {
+        align-self: center;
+      }
+      .security-note {
+        margin: 8px 0 0;
       }
       .row {
         display: flex;
@@ -107,6 +176,35 @@
         grid-template-columns: repeat(2, minmax(0, 1fr));
         gap: 12px;
       }
+      .task-tabs {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 8px;
+        margin-bottom: 12px;
+      }
+      .tab-button {
+        border: 1px solid var(--line);
+        background: rgba(255, 255, 255, 0.8);
+        color: var(--muted);
+      }
+      .tab-button[aria-selected="true"] {
+        border-color: rgba(15, 118, 110, 0.45);
+        background: var(--accent);
+        color: #fff;
+      }
+      .empty-report {
+        display: grid;
+        min-height: 220px;
+        place-items: center;
+        border: 1px dashed var(--line);
+        border-radius: 8px;
+        background: var(--panel-soft);
+        color: var(--muted);
+        text-align: center;
+      }
+      .empty-report p {
+        margin: 6px 0 0;
+      }
       .trade-list {
         display: grid;
         gap: 12px;
@@ -116,11 +214,13 @@
         border: 1px solid var(--line);
         border-radius: 8px;
         padding: 12px;
+        background: var(--panel-soft);
       }
       .trade-card-title {
         margin-bottom: 10px;
-        color: var(--muted);
-        font-size: 14px;
+        color: var(--text);
+        font-size: 15px;
+        font-weight: 700;
       }
       .actions {
         display: flex;
@@ -149,26 +249,107 @@
       article {
         display: none;
         overflow-wrap: anywhere;
+        padding: 0;
       }
-      article h1 {
+      .report-heading {
+        padding: 18px 18px 0;
         font-size: 24px;
       }
-      article h2 {
-        margin-top: 24px;
-        border-bottom: 1px solid var(--line);
-        padding-bottom: 6px;
-        font-size: 19px;
+      .report-section {
+        border-top: 1px solid var(--line);
+        padding: 18px;
       }
-      article li {
-        margin: 7px 0;
+      .report-section:first-of-type {
+        border-top: 0;
+      }
+      .report-section h2 {
+        margin-bottom: 12px;
+      }
+      .report-section p {
+        margin: 0 0 10px;
+      }
+      .report-list {
+        display: grid;
+        gap: 9px;
+        margin: 0;
+        padding: 0;
+      }
+      .report-list li {
+        list-style: none;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: var(--panel-soft);
+        padding: 10px 12px;
+      }
+      .decision-section {
+        background: linear-gradient(180deg, #fff 0, #fff7ed 100%);
+      }
+      .decision-section .report-list li {
+        border-color: #fed7aa;
+        background: #fff7ed;
+      }
+      .notice-section .report-list li {
+        border-color: #fde68a;
+        background: #fffbeb;
+      }
+      .metrics-section .report-list,
+      .cash-section .report-list,
+      .holding-section .report-list {
+        grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
       }
       strong {
         color: var(--accent);
       }
+      .status-chip {
+        display: inline-flex;
+        align-items: center;
+        margin-right: 7px;
+        border-radius: 999px;
+        background: var(--accent-soft);
+        color: var(--accent-dark);
+        font-size: 12px;
+        font-weight: 800;
+        line-height: 1;
+        padding: 4px 7px;
+        vertical-align: 1px;
+      }
+      .status-chip.action {
+        background: var(--danger-soft);
+        color: var(--danger);
+      }
+      .status-chip.review,
+      .status-chip.warn {
+        background: #ffedd5;
+        color: var(--warning);
+      }
+      .status-chip.info {
+        background: #dbeafe;
+        color: var(--info);
+      }
+      @media (max-width: 760px) {
+        main {
+          padding-top: 20px;
+        }
+        .app-header {
+          align-items: stretch;
+          flex-direction: column;
+        }
+        .status-pill {
+          max-width: none;
+          text-align: left;
+        }
+        .unlock-card {
+          grid-template-columns: 1fr;
+        }
+      }
       @media (max-width: 560px) {
+        h1 {
+          font-size: 26px;
+        }
         .row,
         .grid,
-        .actions {
+        .actions,
+        .task-tabs {
           grid-template-columns: 1fr;
           flex-direction: column;
         }
@@ -180,25 +361,52 @@
   </head>
   <body>
     <main>
-      <header>
-        <h1>ETF量化策略日报</h1>
-        <div class="muted" id="meta">加载加密报告中...</div>
+      <header class="app-header">
+        <div>
+          <p class="eyebrow">本地解密 · 成交回填 · 风险复盘</p>
+          <h1>ETF量化策略日报</h1>
+        </div>
+        <div class="status-pill" id="meta">加载加密报告中...</div>
       </header>
 
-      <section class="panel" id="unlock">
-        <h2>查看日报</h2>
-        <div class="muted">输入日报密码后在本机浏览器解密，密码不会发送到服务器。</div>
-        <div class="row">
-          <input id="password" type="password" autocomplete="current-password" placeholder="日报密码" />
-          <button id="decrypt">解密查看</button>
+      <section class="panel unlock-card" id="unlock">
+        <div class="unlock-copy">
+          <p class="panel-kicker">查看日报</p>
+          <h2>先解密，再看今日操作</h2>
+          <p class="muted security-note">日报密码只在本机浏览器用于解密，不会发送到服务器。</p>
         </div>
-        <div class="message error" id="error"></div>
+        <div>
+          <div class="row">
+            <input id="password" type="password" autocomplete="current-password" placeholder="日报密码" />
+            <button id="decrypt">解密查看</button>
+          </div>
+          <div class="message error" id="error"></div>
+        </div>
       </section>
 
-      <article id="report"></article>
+      <nav class="task-tabs" aria-label="页面功能">
+        <button class="tab-button" type="button" data-tab-target="report-panel" aria-selected="true">日报</button>
+        <button class="tab-button" type="button" data-tab-target="trade-panel" aria-selected="false">成交回填</button>
+        <button class="tab-button" type="button" data-tab-target="manage-panel" aria-selected="false">成交管理</button>
+      </nav>
 
-      <section class="panel" id="trade-panel">
-        <h2>成交回填</h2>
+      <section class="tab-panel" id="report-panel" data-tab-panel>
+        <div class="empty-report" id="report-empty">
+          <div>
+            <strong>日报已加密</strong>
+            <p>输入密码后，这里会显示今日结论、风险提醒和关键指标。</p>
+          </div>
+        </div>
+        <article id="report"></article>
+      </section>
+
+      <section class="panel tab-panel" id="trade-panel" data-tab-panel hidden>
+        <div class="panel-head">
+          <div>
+            <p class="panel-kicker">快速记一笔</p>
+            <h2>成交回填</h2>
+          </div>
+        </div>
         <form id="trade-form">
           <div class="grid">
             <label>
@@ -262,8 +470,13 @@
         </datalist>
       </section>
 
-      <section class="panel" id="manage-panel">
-        <h2>成交管理</h2>
+      <section class="panel tab-panel" id="manage-panel" data-tab-panel hidden>
+        <div class="panel-head">
+          <div>
+            <p class="panel-kicker">修改或删除已记录成交</p>
+            <h2>成交管理</h2>
+          </div>
+        </div>
         <form id="manage-form">
           <div class="row">
             <input id="manage-password" type="password" autocomplete="current-password" placeholder="提交密码" required />
@@ -281,6 +494,7 @@
       const meta = document.getElementById("meta");
       const errorBox = document.getElementById("error");
       const reportNode = document.getElementById("report");
+      const reportEmpty = document.getElementById("report-empty");
       const unlockNode = document.getElementById("unlock");
       const tradeForm = document.getElementById("trade-form");
       const tradeMessage = document.getElementById("trade-message");
@@ -289,6 +503,8 @@
       const manageMessage = document.getElementById("manage-message");
       const loadTradesButton = document.getElementById("load-trades");
       const tradeList = document.getElementById("trade-list");
+      const tabButtons = Array.from(document.querySelectorAll("[data-tab-target]"));
+      const tabPanels = Array.from(document.querySelectorAll("[data-tab-panel]"));
       let encryptedReport = null;
       let currentManagePassword = "";
 
@@ -325,7 +541,9 @@
           const markdown = await decryptPayload(encryptedReport, password);
           reportNode.innerHTML = renderMarkdown(markdown);
           reportNode.style.display = "block";
+          reportEmpty.hidden = true;
           unlockNode.style.display = "none";
+          showTab("report-panel");
         } catch (error) {
           errorBox.textContent = "密码错误或报告已损坏，无法解密。";
         }
@@ -365,43 +583,70 @@
         return bytes;
       }
 
+      function showTab(panelId) {
+        for (const panel of tabPanels) {
+          panel.hidden = panel.id !== panelId;
+        }
+        for (const button of tabButtons) {
+          button.setAttribute("aria-selected", String(button.dataset.tabTarget === panelId));
+        }
+      }
+
       function renderMarkdown(markdown) {
         const lines = markdown.split(/\r?\n/);
         let html = "";
         let inList = false;
+        let inSection = false;
+        const closeList = () => {
+          if (!inList) return;
+          html += "</ul>";
+          inList = false;
+        };
+        const closeSection = () => {
+          closeList();
+          if (!inSection) return;
+          html += "</section>";
+          inSection = false;
+        };
         for (const line of lines) {
           if (line.startsWith("# ")) {
-            if (inList) {
-              html += "</ul>";
-              inList = false;
-            }
-            html += `<h1>${inline(line.slice(2))}</h1>`;
+            closeSection();
+            html += `<h1 class="report-heading">${inline(line.slice(2))}</h1>`;
           } else if (line.startsWith("## ")) {
-            if (inList) {
-              html += "</ul>";
-              inList = false;
-            }
-            html += `<h2>${inline(line.slice(3))}</h2>`;
+            closeSection();
+            const title = line.slice(3);
+            html += `<section class="report-section ${sectionClassName(title)}"><h2>${inline(title)}</h2>`;
+            inSection = true;
           } else if (line.startsWith("- ")) {
             if (!inList) {
-              html += "<ul>";
+              html += '<ul class="report-list">';
               inList = true;
             }
             html += `<li>${inline(line.slice(2))}</li>`;
           } else if (line.trim()) {
-            if (inList) {
-              html += "</ul>";
-              inList = false;
-            }
+            closeList();
             html += `<p>${inline(line)}</p>`;
           }
         }
-        if (inList) html += "</ul>";
+        closeSection();
         return html;
       }
 
+      function sectionClassName(title) {
+        if (title.includes("今日结论")) return "decision-section";
+        if (title.includes("提醒")) return "notice-section";
+        if (title.includes("关键指标")) return "metrics-section";
+        if (title.includes("资金池")) return "cash-section";
+        if (title.includes("持仓")) return "holding-section";
+        return "";
+      }
+
       function inline(text) {
-        return escapeHtml(text).replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>");
+        return escapeHtml(text)
+          .replace(/\*\*\[(ACTION|REVIEW|INFO|WARN)\]\s*(.*?)\*\*/g, (_, level, label) => {
+            return `<strong><span class="status-chip ${level.toLowerCase()}">${level}</span> ${label}</strong>`;
+          })
+          .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>");
       }
 
       function escapeHtml(text) {
@@ -564,6 +809,7 @@
       }
 
       async function deleteManagedTrade(card) {
+        if (!confirm("确认删除这笔成交记录？")) return;
         const urls = workerUrls();
         const id = card.dataset.id;
         manageMessage.className = "message";
@@ -649,6 +895,9 @@
       document.getElementById("password").addEventListener("keydown", (event) => {
         if (event.key === "Enter") decryptReport();
       });
+      for (const button of tabButtons) {
+        button.addEventListener("click", () => showTab(button.dataset.tabTarget));
+      }
       loadReport();
       initTradeForm();
       initTradeManagement();
