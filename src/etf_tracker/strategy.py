@@ -14,7 +14,7 @@ from .indicators import (
     moving_average,
     prior_moving_average,
 )
-from .models import PortfolioState, PriceBar
+from .models import PortfolioState, PriceBar, Trade
 from .valuation import valuation_status
 
 
@@ -31,6 +31,15 @@ class StrategyReport:
     signals: list[Signal]
     metrics: dict[str, str]
     warnings: list[str]
+
+
+@dataclass(frozen=True)
+class A500GridParameters:
+    base_price: float
+    lower: float
+    upper: float
+    source: str
+    is_actual: bool
 
 
 def evaluate(
@@ -90,20 +99,21 @@ def _evaluate_a500(
     metrics["A500收盘价"] = f"{latest.close:.4f}"
     metrics["A500持仓份额"] = f"{position.shares:.0f}"
 
-    base_price = symbol_config.get("grid_base_price")
     grid_spacing = float(symbol_config.get("grid_spacing", 0.058))
-    grid_lower = symbol_config.get("grid_lower")
-    grid_upper = symbol_config.get("grid_upper")
+    max_grid_buys = int(symbol_config.get("max_grid_buys", 5))
+    grid_parameters = _a500_grid_parameters(config, portfolio, bars, grid_spacing, max_grid_buys)
+    label = "实际" if grid_parameters.is_actual else "建议"
+    metrics[f"A500{label}网格基准价"] = f"{grid_parameters.base_price:.3f}"
+    metrics[f"A500{label}网格上沿"] = f"{grid_parameters.upper:.3f}"
+    metrics[f"A500{label}网格下沿"] = f"{grid_parameters.lower:.3f}"
+    metrics["A500网格参数来源"] = grid_parameters.source
 
-    if base_price is None:
-        warnings.append("A500 网格基准价未配置，无法判断网格买卖。")
-    else:
-        base_price = float(base_price)
-        drawdown = (base_price - latest.close) / base_price
+    if grid_parameters.is_actual:
+        base_price = grid_parameters.base_price
+        drawdown = (base_price - latest.close) / base_price if base_price > 0 else 0
         grid_level = int(drawdown // grid_spacing) if drawdown > 0 else 0
         metrics["A500相对基准回撤"] = f"{drawdown:.2%}"
         if grid_level > 0:
-            max_grid_buys = int(symbol_config.get("max_grid_buys", 5))
             if grid_level <= max_grid_buys:
                 signals.append(
                     Signal(
@@ -121,14 +131,12 @@ def _evaluate_a500(
             if profit >= 0.15:
                 signals.append(Signal("ACTION", "A500底仓盈利达到15%", "按策略卖出底仓的1/2，实际份额需人工确认。"))
 
-    if grid_lower is None:
-        warnings.append("A500 网格下沿未配置，无法判断跌破下沿暂停。")
-    elif latest.close < float(grid_lower):
+    if grid_parameters.is_actual and latest.close < grid_parameters.lower:
         signals.append(Signal("WARN", "A500跌破网格下沿", "暂停普通网格补仓；备用金只进入人工复核候选。"))
 
-    if grid_upper is not None and latest.close > float(grid_upper):
+    if grid_parameters.is_actual and latest.close > grid_parameters.upper:
         recent = bars[-10:] if len(bars) >= 10 else bars
-        if len(recent) == 10 and all(item.close > float(grid_upper) for item in recent):
+        if len(recent) == 10 and all(item.close > grid_parameters.upper for item in recent):
             signals.append(Signal("REVIEW", "A500连续10日高于网格上沿", "不追买，复核底仓趋势止盈或后续网格参数。"))
 
 
@@ -153,10 +161,24 @@ def _evaluate_kc50(
         metrics["科创50近12个月高点回撤"] = f"{dd:.2%}"
         steps = config.symbols["kc50"]["buy_steps"]
         bought_amount = _symbol_buy_amount(portfolio, config.kc50_code)
+        first_step = steps[0]
+        first_step_drawdown = float(first_step["drawdown"])
+        first_step_amount = float(first_step["amount"])
+        if bought_amount < first_step_amount and not _reaches_threshold(dd, first_step_drawdown):
+            recent = bars[-252:] if len(bars) >= 252 else bars
+            high_close = max(item.close for item in recent)
+            trigger_close = high_close * (1 - first_step_drawdown)
+            signals.append(
+                Signal(
+                    "INFO",
+                    "科创50尚未触发第一笔买入",
+                    f"尚未达到第一笔买入触发点，估算第一笔触发收盘价约 {trigger_close:.4f}。",
+                )
+            )
         cumulative = 0.0
         for index, step in enumerate(steps, start=1):
             cumulative += float(step["amount"])
-            if dd >= float(step["drawdown"]) and bought_amount < cumulative:
+            if _reaches_threshold(dd, float(step["drawdown"])) and bought_amount < cumulative:
                 level = "REVIEW" if index in {1, 4} else "ACTION"
                 detail = f"目标金额 {step['amount']} 元；需确认估值分位、已买档位和风险闸门。"
                 if index == 4:
@@ -243,6 +265,56 @@ def _is_weak(bars: list[PriceBar]) -> bool | None:
 
 def _symbol_buy_amount(portfolio: PortfolioState, symbol: str) -> float:
     return sum(trade.amount for trade in portfolio.trades if trade.symbol == symbol and trade.is_buy)
+
+
+def _a500_grid_parameters(
+    config: TrackerConfig,
+    portfolio: PortfolioState,
+    bars: list[PriceBar],
+    grid_spacing: float,
+    max_grid_buys: int,
+) -> A500GridParameters:
+    base_trade = _a500_base_trade(config, portfolio)
+    if base_trade is not None:
+        base_price = _round_etf_price(base_trade.price)
+        source = f"实际：{base_trade.date} 底仓买入价"
+        if "底仓" not in base_trade.module:
+            source = f"实际：{base_trade.date} 首笔A500买入价"
+        return A500GridParameters(
+            base_price=base_price,
+            lower=_round_etf_price(base_price * (1 - grid_spacing * max_grid_buys)),
+            upper=_round_etf_price(base_price * 1.15),
+            source=source,
+            is_actual=True,
+        )
+
+    recent = bars[-20:] if len(bars) >= 20 else bars
+    base_price = _round_etf_price(max(item.close for item in recent))
+    return A500GridParameters(
+        base_price=base_price,
+        lower=_round_etf_price(base_price * (1 - grid_spacing * max_grid_buys)),
+        upper=base_price,
+        source=f"建议：最近{len(recent)}个交易日收盘高点",
+        is_actual=False,
+    )
+
+
+def _a500_base_trade(config: TrackerConfig, portfolio: PortfolioState) -> Trade | None:
+    buys = [trade for trade in portfolio.trades if trade.symbol == config.a500_code and trade.is_buy]
+    base_buys = [trade for trade in buys if "底仓" in trade.module]
+    if base_buys:
+        return base_buys[0]
+    if buys:
+        return buys[0]
+    return None
+
+
+def _round_etf_price(value: float) -> float:
+    return round(value + 1e-12, 3)
+
+
+def _reaches_threshold(value: float, threshold: float) -> bool:
+    return value + 1e-12 >= threshold
 
 
 def _latest_common_date(a: list[PriceBar], b: list[PriceBar]) -> date | None:

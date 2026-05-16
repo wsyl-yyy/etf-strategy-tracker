@@ -24,18 +24,143 @@ def test_kc50_h3_signal_when_net_value_below_1500() -> None:
     assert "科创50波段净值低于1500" in titles
 
 
-def test_a500_lower_edge_warns_pause_grid() -> None:
+def test_kc50_before_first_buy_shows_estimated_trigger_close() -> None:
     config = _config()
     portfolio = build_portfolio(config, [])
     report = evaluate(
         config,
         portfolio,
         {
-            "563360": _bars(1.0, 0.80),
+            "563360": _bars(1.0, 1.0),
+            "588000": _bars_from_closes([1.0] * 252 + [0.90]),
+        },
+    )
+    signal = next(signal for signal in report.signals if signal.title == "科创50尚未触发第一笔买入")
+    assert signal.level == "INFO"
+    assert signal.detail == "尚未达到第一笔买入触发点，估算第一笔触发收盘价约 0.7800。"
+
+
+def test_kc50_first_buy_trigger_hides_estimated_trigger_close() -> None:
+    config = _config()
+    portfolio = build_portfolio(config, [])
+    report = evaluate(
+        config,
+        portfolio,
+        {
+            "563360": _bars(1.0, 1.0),
+            "588000": _bars_from_closes([1.0] * 252 + [0.78]),
+        },
+    )
+    titles = [signal.title for signal in report.signals]
+    assert "科创50可能触发第1笔买入" in titles
+    assert "科创50尚未触发第一笔买入" not in titles
+
+
+def test_a500_without_trade_shows_suggested_grid_only() -> None:
+    config = _config()
+    portfolio = build_portfolio(config, [])
+    report = evaluate(
+        config,
+        portfolio,
+        {
+            "563360": _bars(1.2, 1.0, 20),
+            "588000": _bars(1.0, 1.0),
+        },
+    )
+    titles = [signal.title for signal in report.signals]
+    assert report.metrics["A500建议网格基准价"] == "1.200"
+    assert report.metrics["A500建议网格上沿"] == "1.200"
+    assert report.metrics["A500建议网格下沿"] == "0.852"
+    assert report.metrics["A500网格参数来源"] == "建议：最近20个交易日收盘高点"
+    assert "A500可能触发第2格补仓" not in titles
+    assert "A500跌破网格下沿" not in titles
+
+
+def test_a500_base_trade_generates_actual_grid() -> None:
+    config = _config()
+    trades = [Trade(date(2026, 1, 2), "563360", "买入", "A500初始底仓", 1.234, 1000, 810, 0)]
+    portfolio = build_portfolio(config, trades)
+    report = evaluate(
+        config,
+        portfolio,
+        {
+            "563360": _bars(1.0, 1.0),
+            "588000": _bars(1.0, 1.0),
+        },
+    )
+    assert report.metrics["A500实际网格基准价"] == "1.234"
+    assert report.metrics["A500实际网格上沿"] == "1.419"
+    assert report.metrics["A500实际网格下沿"] == "0.876"
+    assert report.metrics["A500网格参数来源"] == "实际：2026-01-02 底仓买入价"
+
+
+def test_a500_grid_prefers_base_trade_over_other_buys() -> None:
+    config = _config()
+    trades = [
+        Trade(date(2026, 1, 1), "563360", "买入", "A500常规网格", 1.400, 600, 429, 0),
+        Trade(date(2026, 1, 2), "563360", "买入", "A500初始底仓", 1.100, 1000, 909, 0),
+        Trade(date(2026, 1, 3), "563360", "买入", "A500常规网格", 0.900, 600, 667, 0),
+    ]
+    portfolio = build_portfolio(config, trades)
+    report = evaluate(
+        config,
+        portfolio,
+        {
+            "563360": _bars(1.0, 1.0),
+            "588000": _bars(1.0, 1.0),
+        },
+    )
+    assert report.metrics["A500实际网格基准价"] == "1.100"
+    assert report.metrics["A500网格参数来源"] == "实际：2026-01-02 底仓买入价"
+
+
+def test_a500_grid_falls_back_to_first_buy_without_base_module() -> None:
+    config = _config()
+    trades = [
+        Trade(date(2026, 1, 1), "563360", "买入", "A500网格", 1.050, 600, 571, 0),
+        Trade(date(2026, 1, 2), "563360", "买入", "A500网格", 1.000, 600, 600, 0),
+    ]
+    portfolio = build_portfolio(config, trades)
+    report = evaluate(
+        config,
+        portfolio,
+        {
+            "563360": _bars(1.0, 1.0),
+            "588000": _bars(1.0, 1.0),
+        },
+    )
+    assert report.metrics["A500实际网格基准价"] == "1.050"
+    assert report.metrics["A500网格参数来源"] == "实际：2026-01-01 首笔A500买入价"
+
+
+def test_a500_actual_lower_edge_warns_pause_grid() -> None:
+    config = _config()
+    trades = [Trade(date(2026, 1, 2), "563360", "买入", "A500初始底仓", 1.0, 1000, 1000, 0)]
+    portfolio = build_portfolio(config, trades)
+    report = evaluate(
+        config,
+        portfolio,
+        {
+            "563360": _bars(1.0, 0.70),
             "588000": _bars(1.0, 1.0),
         },
     )
     assert any(signal.title == "A500跌破网格下沿" for signal in report.signals)
+
+
+def test_a500_actual_upper_edge_warns_after_10_days() -> None:
+    config = _config()
+    trades = [Trade(date(2026, 1, 2), "563360", "买入", "A500初始底仓", 1.0, 1000, 1000, 0)]
+    portfolio = build_portfolio(config, trades)
+    report = evaluate(
+        config,
+        portfolio,
+        {
+            "563360": _bars_from_closes([1.0] * 250 + [1.16] * 10),
+            "588000": _bars(1.0, 1.0),
+        },
+    )
+    assert any(signal.title == "A500连续10日高于网格上沿" for signal in report.signals)
 
 
 def test_global_85_percent_blocks_new_buys() -> None:
@@ -104,3 +229,18 @@ def _bars(start: float, end: float, count: int = 260) -> list[PriceBar]:
         )
     return bars
 
+
+def _bars_from_closes(closes: list[float]) -> list[PriceBar]:
+    first = date(2025, 1, 1)
+    return [
+        PriceBar(
+            date=first + timedelta(days=index),
+            open=close,
+            close=close,
+            high=close,
+            low=close,
+            pct_change=0.0,
+            amount=0.0,
+        )
+        for index, close in enumerate(closes)
+    ]
