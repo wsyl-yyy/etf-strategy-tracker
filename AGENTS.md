@@ -163,6 +163,9 @@ Never write actual secret values into tracked files.
 - Keep changes small and aligned with the current simple architecture.
 - Prefer existing Python modules and plain static HTML/JS over adding new frameworks.
 - `docs/index.html` is a single static page with built-in tabs for report, trade submit, and trade management. Keep existing form element IDs, `data-tab-target`/`data-tab-panel`, and `__ENCRYPTED_REPORT_JSON__` / `__WORKER_CONFIG_JSON__` placeholders stable because Actions and page JavaScript depend on them.
+- The trade submit UI uses segmented direction buttons backed by hidden `#trade-side`; keep submitted values exactly `买入` / `卖出`.
+- Client-side price/amount/share checks are advisory only. Do not make them block submission unless the Worker validation contract changes too.
+- If remembering the trade submit password in the page, keep it limited to browser `sessionStorage`; never persist it into generated reports, local files, KV, or tracked code.
 - Do not add automatic trading or broker integration.
 - Do not move sensitive state into the public repo.
 - When changing trade schema, update all three places together:

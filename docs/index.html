@@ -176,6 +176,85 @@
         grid-template-columns: repeat(2, minmax(0, 1fr));
         gap: 12px;
       }
+      .field {
+        display: grid;
+        gap: 6px;
+        color: var(--muted);
+        font-size: 14px;
+      }
+      .side-toggle {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 8px;
+      }
+      .side-option {
+        border: 1px solid var(--line);
+        background: #fff;
+        color: var(--muted);
+      }
+      .side-option.buy[aria-pressed="true"] {
+        border-color: rgba(4, 120, 87, 0.45);
+        background: var(--ok);
+        color: #fff;
+      }
+      .side-option.sell[aria-pressed="true"] {
+        border-color: rgba(185, 28, 28, 0.45);
+        background: var(--danger);
+        color: #fff;
+      }
+      .side-option.buy[aria-pressed="true"]:active:not(:disabled) {
+        background: #065f46;
+      }
+      .side-option.sell[aria-pressed="true"]:active:not(:disabled) {
+        background: #991b1b;
+      }
+      .trade-assist {
+        display: grid;
+        gap: 8px;
+        margin-top: 12px;
+      }
+      .trade-summary,
+      .trade-calc-hint {
+        border: 1px solid var(--line);
+        border-radius: 7px;
+        background: var(--panel-soft);
+        color: var(--muted);
+        font-size: 14px;
+        padding: 9px 11px;
+      }
+      .trade-summary.buy {
+        border-color: rgba(4, 120, 87, 0.24);
+        background: #ecfdf5;
+        color: var(--ok);
+      }
+      .trade-summary.sell,
+      .trade-calc-hint.warn {
+        border-color: #fecaca;
+        background: #fef2f2;
+        color: var(--danger);
+      }
+      .trade-calc-hint:empty {
+        display: none;
+      }
+      .trade-options {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px 18px;
+        margin-top: 12px;
+      }
+      .checkbox-field {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        color: var(--muted);
+        font-size: 14px;
+      }
+      .checkbox-field input[type="checkbox"] {
+        width: 16px;
+        min-width: 16px;
+        height: 16px;
+        padding: 0;
+      }
       .task-tabs {
         display: grid;
         grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -216,11 +295,65 @@
         padding: 12px;
         background: var(--panel-soft);
       }
-      .trade-card-title {
-        margin-bottom: 10px;
+      .trade-card.saved-highlight {
+        animation: saved-highlight 2.2s ease-out;
+      }
+      .trade-card-header {
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+        margin-bottom: 8px;
+      }
+      .trade-card-main {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 8px;
+      }
+      .trade-card-symbol,
+      .trade-card-amount {
         color: var(--text);
-        font-size: 15px;
-        font-weight: 700;
+        font-size: 16px;
+        font-weight: 800;
+      }
+      .trade-card-meta,
+      .trade-card-note {
+        color: var(--muted);
+        font-size: 13px;
+      }
+      .trade-card-meta {
+        margin-top: 4px;
+      }
+      .trade-card-note {
+        margin: 0 0 10px;
+        overflow-wrap: anywhere;
+      }
+      .trade-side-badge {
+        display: inline-flex;
+        align-items: center;
+        border-radius: 999px;
+        font-size: 12px;
+        font-weight: 800;
+        line-height: 1;
+        padding: 5px 8px;
+      }
+      .trade-side-badge.buy {
+        background: #dcfce7;
+        color: var(--ok);
+      }
+      .trade-side-badge.sell {
+        background: var(--danger-soft);
+        color: var(--danger);
+      }
+      @keyframes saved-highlight {
+        0% {
+          border-color: rgba(4, 120, 87, 0.7);
+          box-shadow: 0 0 0 3px rgba(4, 120, 87, 0.14);
+        }
+        100% {
+          border-color: var(--line);
+          box-shadow: none;
+        }
       }
       .actions {
         display: flex;
@@ -349,7 +482,8 @@
         .row,
         .grid,
         .actions,
-        .task-tabs {
+        .task-tabs,
+        .trade-options {
           grid-template-columns: 1fr;
           flex-direction: column;
         }
@@ -417,13 +551,14 @@
               标的
               <input id="trade-symbol" name="symbol" list="symbol-list" inputmode="numeric" placeholder="563360" required />
             </label>
-            <label>
-              方向
-              <select id="trade-side" name="side" required>
-                <option value="买入">买入</option>
-                <option value="卖出">卖出</option>
-              </select>
-            </label>
+            <div class="field">
+              <span>方向</span>
+              <input id="trade-side" name="side" type="hidden" value="买入" />
+              <div class="side-toggle" role="group" aria-label="买卖方向">
+                <button class="side-option buy" type="button" data-side-option="买入" aria-pressed="true">买入</button>
+                <button class="side-option sell" type="button" data-side-option="卖出" aria-pressed="false">卖出</button>
+              </div>
+            </div>
             <label>
               策略模块
               <input id="trade-module" name="module" list="module-list" placeholder="A500网格" />
@@ -451,6 +586,20 @@
             <label class="full">
               备注
               <textarea id="trade-note" name="note" placeholder="可选"></textarea>
+            </label>
+          </div>
+          <div class="trade-assist">
+            <div class="trade-summary" id="trade-summary" aria-live="polite">填写标的和金额后显示提交摘要。</div>
+            <div class="trade-calc-hint" id="trade-calc-hint" aria-live="polite"></div>
+          </div>
+          <div class="trade-options">
+            <label class="checkbox-field">
+              <input id="keep-trade-context" type="checkbox" />
+              保留标的、模块和方向
+            </label>
+            <label class="checkbox-field">
+              <input id="remember-submit-password" type="checkbox" />
+              本次会话记住提交密码
             </label>
           </div>
           <div class="row">
@@ -499,14 +648,29 @@
       const tradeForm = document.getElementById("trade-form");
       const tradeMessage = document.getElementById("trade-message");
       const submitTradeButton = document.getElementById("submit-trade");
+      const tradeSummary = document.getElementById("trade-summary");
+      const tradeCalcHint = document.getElementById("trade-calc-hint");
+      const tradeSideInput = document.getElementById("trade-side");
+      const tradeSideButtons = Array.from(document.querySelectorAll("[data-side-option]"));
+      const tradeSymbolInput = document.getElementById("trade-symbol");
+      const tradeModuleInput = document.getElementById("trade-module");
+      const tradePriceInput = document.getElementById("trade-price");
+      const tradeAmountInput = document.getElementById("trade-amount");
+      const tradeSharesInput = document.getElementById("trade-shares");
+      const tradeFeeInput = document.getElementById("trade-fee");
+      const submitPasswordInput = document.getElementById("submit-password");
+      const keepTradeContextCheckbox = document.getElementById("keep-trade-context");
+      const rememberSubmitPasswordCheckbox = document.getElementById("remember-submit-password");
       const manageForm = document.getElementById("manage-form");
       const manageMessage = document.getElementById("manage-message");
       const loadTradesButton = document.getElementById("load-trades");
       const tradeList = document.getElementById("trade-list");
       const tabButtons = Array.from(document.querySelectorAll("[data-tab-target]"));
       const tabPanels = Array.from(document.querySelectorAll("[data-tab-panel]"));
+      const submitPasswordSessionKey = "etf-tracker-submit-password";
       let encryptedReport = null;
       let currentManagePassword = "";
+      let sharesAutoFilled = false;
 
       async function loadReport() {
         try {
@@ -673,6 +837,30 @@
           .toISOString()
           .slice(0, 10);
         document.getElementById("trade-date").value = today;
+        const rememberedPassword = readSessionValue(submitPasswordSessionKey);
+        if (rememberedPassword) {
+          submitPasswordInput.value = rememberedPassword;
+          rememberSubmitPasswordCheckbox.checked = true;
+        }
+
+        setTradeSide(tradeSideInput.value || "买入");
+        for (const button of tradeSideButtons) {
+          button.addEventListener("click", () => setTradeSide(button.dataset.sideOption));
+        }
+        for (const input of [tradeSymbolInput, tradeAmountInput]) {
+          input.addEventListener("input", updateTradeSummary);
+        }
+        for (const input of [tradePriceInput, tradeAmountInput]) {
+          input.addEventListener("input", () => updateTradeCalculations(true));
+        }
+        tradeSharesInput.addEventListener("input", () => {
+          sharesAutoFilled = false;
+          updateTradeCalculations(false);
+        });
+        rememberSubmitPasswordCheckbox.addEventListener("change", syncRememberedSubmitPassword);
+        submitPasswordInput.addEventListener("input", syncRememberedSubmitPassword);
+        updateTradeSummary();
+        updateTradeCalculations(false);
 
         const urls = workerUrls();
         if (!urls.tradeSubmitUrl) {
@@ -702,9 +890,29 @@
             }
             tradeMessage.className = "message success";
             tradeMessage.textContent = "提交成功，日报会自动刷新。";
+            const keepContext = keepTradeContextCheckbox.checked;
+            const rememberPassword = rememberSubmitPasswordCheckbox.checked;
+            const keptSymbol = tradeSymbolInput.value;
+            const keptModule = tradeModuleInput.value;
+            const keptSide = tradeSideInput.value;
+            const keptPassword = submitPasswordInput.value;
             tradeForm.reset();
             document.getElementById("trade-date").value = today;
-            document.getElementById("trade-fee").value = "0";
+            tradeFeeInput.value = "0";
+            keepTradeContextCheckbox.checked = keepContext;
+            rememberSubmitPasswordCheckbox.checked = rememberPassword;
+            if (keepContext) {
+              tradeSymbolInput.value = keptSymbol;
+              tradeModuleInput.value = keptModule;
+            }
+            if (rememberPassword) {
+              submitPasswordInput.value = keptPassword;
+            }
+            setTradeSide(keepContext ? keptSide : "买入");
+            sharesAutoFilled = false;
+            syncRememberedSubmitPassword();
+            updateTradeSummary();
+            updateTradeCalculations(false);
           } catch (error) {
             tradeMessage.className = "message error";
             tradeMessage.textContent = error.message;
@@ -712,6 +920,70 @@
             submitTradeButton.disabled = false;
           }
         });
+      }
+
+      function setTradeSide(side) {
+        const nextSide = side === "卖出" ? "卖出" : "买入";
+        tradeSideInput.value = nextSide;
+        for (const button of tradeSideButtons) {
+          button.setAttribute("aria-pressed", String(button.dataset.sideOption === nextSide));
+        }
+        updateTradeSummary();
+      }
+
+      function updateTradeSummary() {
+        const symbol = tradeSymbolInput.value.trim();
+        const amount = Number(tradeAmountInput.value);
+        const side = tradeSideInput.value || "买入";
+        if (!symbol || !Number.isFinite(amount) || amount <= 0) {
+          tradeSummary.className = "trade-summary";
+          tradeSummary.textContent = "填写标的和金额后显示提交摘要。";
+          return;
+        }
+        tradeSummary.className = `trade-summary ${side === "卖出" ? "sell" : "buy"}`;
+        tradeSummary.textContent = `将记录 ${symbol} ${side} ${formatMoney(amount)} 元`;
+      }
+
+      function updateTradeCalculations(allowAutoFill) {
+        const price = Number(tradePriceInput.value);
+        const amount = Number(tradeAmountInput.value);
+        if (Number.isFinite(price) && price > 0 && Number.isFinite(amount) && amount > 0) {
+          const estimatedShares = amount / price;
+          if (allowAutoFill && (!tradeSharesInput.value || sharesAutoFilled)) {
+            tradeSharesInput.value = formatShares(estimatedShares);
+            sharesAutoFilled = true;
+          }
+        }
+
+        tradeCalcHint.className = "trade-calc-hint";
+        tradeCalcHint.textContent = "";
+        const shares = Number(tradeSharesInput.value);
+        if (
+          !Number.isFinite(price) ||
+          price <= 0 ||
+          !Number.isFinite(amount) ||
+          amount <= 0 ||
+          !Number.isFinite(shares) ||
+          shares <= 0
+        ) {
+          return;
+        }
+
+        const diff = price * shares - amount;
+        if (Math.abs(diff) >= 0.01) {
+          tradeCalcHint.classList.add("warn");
+          tradeCalcHint.textContent = `金额与份额约差 ${formatMoney(Math.abs(diff))} 元。`;
+        } else if (sharesAutoFilled) {
+          tradeCalcHint.textContent = `已按成交金额和成交价估算份额：${formatShares(shares)}。`;
+        }
+      }
+
+      function syncRememberedSubmitPassword() {
+        if (!rememberSubmitPasswordCheckbox.checked) {
+          removeSessionValue(submitPasswordSessionKey);
+          return;
+        }
+        writeSessionValue(submitPasswordSessionKey, submitPasswordInput.value);
       }
 
       function initTradeManagement() {
@@ -730,7 +1002,9 @@
         });
       }
 
-      async function loadManagedTrades() {
+      async function loadManagedTrades(options = {}) {
+        const successMessage = options.successMessage || "成交记录已加载。";
+        const highlightId = options.highlightId || "";
         const urls = workerUrls();
         manageMessage.className = "message";
         manageMessage.textContent = "正在加载...";
@@ -742,9 +1016,9 @@
             method: "POST",
             body: { submitPassword: currentManagePassword },
           });
-          renderTradeList(result.trades || []);
+          renderTradeList(result.trades || [], highlightId);
           manageMessage.className = "message success";
-          manageMessage.textContent = "成交记录已加载。";
+          manageMessage.textContent = successMessage;
         } catch (error) {
           manageMessage.className = "message error";
           manageMessage.textContent = error.message;
@@ -753,7 +1027,7 @@
         }
       }
 
-      function renderTradeList(trades) {
+      function renderTradeList(trades, highlightId = "") {
         tradeList.innerHTML = "";
         if (!trades.length) {
           tradeList.innerHTML = '<div class="muted">暂无成交记录。</div>';
@@ -764,8 +1038,25 @@
           const card = document.createElement("div");
           card.className = "trade-card";
           card.dataset.id = trade.id;
+          if (trade.id === highlightId) {
+            card.classList.add("saved-highlight");
+          }
+          const sideClass = trade.side === "卖出" ? "sell" : "buy";
+          const noteHtml = trade.note
+            ? `<div class="trade-card-note">备注：${escapeHtml(trade.note)}</div>`
+            : "";
           card.innerHTML = `
-            <div class="trade-card-title">${escapeHtml(trade.date || "")} · ${escapeHtml(trade.symbol || "")} · ${escapeHtml(trade.side || "")}</div>
+            <div class="trade-card-header">
+              <div>
+                <div class="trade-card-main">
+                  <span class="trade-side-badge ${sideClass}">${escapeHtml(trade.side || "")}</span>
+                  <span class="trade-card-symbol">${escapeHtml(trade.symbol || "")}</span>
+                  <span class="trade-card-amount">${formatMoney(Number(trade.amount))} 元</span>
+                </div>
+                <div class="trade-card-meta">${escapeHtml(trade.date || "")}${trade.module ? ` · ${escapeHtml(trade.module)}` : ""}</div>
+              </div>
+            </div>
+            ${noteHtml}
             <div class="grid">
               <label>日期<input data-field="date" type="date" value="${attr(trade.date)}" required /></label>
               <label>标的<input data-field="symbol" inputmode="numeric" value="${attr(trade.symbol)}" required /></label>
@@ -786,6 +1077,9 @@
           card.querySelector(".save-trade").addEventListener("click", () => saveManagedTrade(card));
           card.querySelector(".delete-trade").addEventListener("click", () => deleteManagedTrade(card));
           tradeList.appendChild(card);
+          if (trade.id === highlightId) {
+            window.setTimeout(() => card.classList.remove("saved-highlight"), 2200);
+          }
         }
       }
 
@@ -799,9 +1093,7 @@
             method: "PUT",
             body: { ...collectCardTrade(card), submitPassword: currentManagePassword },
           });
-          manageMessage.className = "message success";
-          manageMessage.textContent = "修改已保存，日报会自动刷新。";
-          await loadManagedTrades();
+          await loadManagedTrades({ successMessage: "修改已保存，列表已刷新。", highlightId: id });
         } catch (error) {
           manageMessage.className = "message error";
           manageMessage.textContent = error.message;
@@ -819,9 +1111,7 @@
             method: "DELETE",
             body: { submitPassword: currentManagePassword },
           });
-          manageMessage.className = "message success";
-          manageMessage.textContent = "成交已删除，日报会自动刷新。";
-          await loadManagedTrades();
+          await loadManagedTrades({ successMessage: "成交已删除，列表已刷新。" });
         } catch (error) {
           manageMessage.className = "message error";
           manageMessage.textContent = error.message;
@@ -855,11 +1145,11 @@
 
       function collectTradePayload() {
         return {
-          submitPassword: document.getElementById("submit-password").value,
+          submitPassword: submitPasswordInput.value,
           date: document.getElementById("trade-date").value,
-          symbol: document.getElementById("trade-symbol").value.trim(),
-          side: document.getElementById("trade-side").value,
-          module: document.getElementById("trade-module").value.trim(),
+          symbol: tradeSymbolInput.value.trim(),
+          side: tradeSideInput.value,
+          module: tradeModuleInput.value.trim(),
           price: numberValue("trade-price"),
           amount: numberValue("trade-amount"),
           shares: numberValue("trade-shares"),
@@ -885,6 +1175,43 @@
       function numberValue(id) {
         const value = document.getElementById(id).value;
         return value === "" ? 0 : Number(value);
+      }
+
+      function formatMoney(value) {
+        if (!Number.isFinite(value)) return "0";
+        return value.toLocaleString("zh-CN", {
+          minimumFractionDigits: Number.isInteger(value) ? 0 : 2,
+          maximumFractionDigits: 2,
+        });
+      }
+
+      function formatShares(value) {
+        if (!Number.isFinite(value)) return "";
+        return String(Math.round(value * 100) / 100);
+      }
+
+      function readSessionValue(key) {
+        try {
+          return sessionStorage.getItem(key) || "";
+        } catch (error) {
+          return "";
+        }
+      }
+
+      function writeSessionValue(key, value) {
+        try {
+          sessionStorage.setItem(key, value);
+        } catch (error) {
+          // Some privacy modes block sessionStorage; the form still works without it.
+        }
+      }
+
+      function removeSessionValue(key) {
+        try {
+          sessionStorage.removeItem(key);
+        } catch (error) {
+          // Some privacy modes block sessionStorage; the form still works without it.
+        }
       }
 
       function attr(value) {
