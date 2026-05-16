@@ -68,17 +68,36 @@ def test_a500_without_trade_shows_suggested_grid_only() -> None:
         },
     )
     titles = [signal.title for signal in report.signals]
-    assert report.metrics["A500建议网格基准价"] == "1.200"
-    assert report.metrics["A500建议网格上沿"] == "1.200"
-    assert report.metrics["A500建议网格下沿"] == "0.852"
-    assert report.metrics["A500网格参数来源"] == "建议：最近20个交易日收盘高点"
+    assert float(report.metrics["A500建议网格基准价"]) <= float(report.metrics["A500收盘价"])
+    assert report.metrics["A500建议网格基准价"] == "0.999"
+    assert report.metrics["A500建议网格上沿"] == "0.999"
+    assert report.metrics["A500建议网格下沿"] == "0.709"
+    assert report.metrics["A500网格参数来源"] == "建议：技术估值综合，最高不超过最新收盘价"
     assert "A500可能触发第2格补仓" not in titles
     assert "A500跌破网格下沿" not in titles
 
 
+def test_a500_suggested_grid_uses_latest_close_when_history_is_short() -> None:
+    config = _config()
+    portfolio = build_portfolio(config, [])
+    report = evaluate(
+        config,
+        portfolio,
+        {
+            "563360": _bars(1.2, 1.0, 10),
+            "588000": _bars(1.0, 1.0),
+        },
+    )
+    assert report.metrics["A500建议网格基准价"] == "1.000"
+    assert report.metrics["A500网格参数来源"] == "建议：历史数据不足，使用最新收盘价"
+
+
 def test_a500_base_trade_generates_actual_grid() -> None:
     config = _config()
-    trades = [Trade(date(2026, 1, 2), "563360", "买入", "A500初始底仓", 1.234, 1000, 810, 0)]
+    trades = [
+        Trade(date(2026, 1, 2), "563360", "买入", "A500初始底仓", 1.0, 1000, 800, 0),
+        Trade(date(2026, 1, 3), "563360", "买入", "A500初始底仓", 1.0, 500, 400, 0.6),
+    ]
     portfolio = build_portfolio(config, trades)
     report = evaluate(
         config,
@@ -88,10 +107,11 @@ def test_a500_base_trade_generates_actual_grid() -> None:
             "588000": _bars(1.0, 1.0),
         },
     )
-    assert report.metrics["A500实际网格基准价"] == "1.234"
-    assert report.metrics["A500实际网格上沿"] == "1.419"
-    assert report.metrics["A500实际网格下沿"] == "0.876"
-    assert report.metrics["A500网格参数来源"] == "实际：2026-01-02 底仓买入价"
+    assert report.metrics["A500实际网格基准价"] == "1.251"
+    assert report.metrics["A500实际网格上沿"] == "1.439"
+    assert report.metrics["A500实际网格下沿"] == "0.888"
+    assert report.metrics["A500网格参数来源"] == "实际：A500底仓成交均价"
+    assert "A500建议网格基准价" not in report.metrics
 
 
 def test_a500_grid_prefers_base_trade_over_other_buys() -> None:
@@ -111,10 +131,10 @@ def test_a500_grid_prefers_base_trade_over_other_buys() -> None:
         },
     )
     assert report.metrics["A500实际网格基准价"] == "1.100"
-    assert report.metrics["A500网格参数来源"] == "实际：2026-01-02 底仓买入价"
+    assert report.metrics["A500网格参数来源"] == "实际：A500底仓成交均价"
 
 
-def test_a500_grid_falls_back_to_first_buy_without_base_module() -> None:
+def test_a500_grid_falls_back_to_position_cost_without_base_module() -> None:
     config = _config()
     trades = [
         Trade(date(2026, 1, 1), "563360", "买入", "A500网格", 1.050, 600, 571, 0),
@@ -129,8 +149,8 @@ def test_a500_grid_falls_back_to_first_buy_without_base_module() -> None:
             "588000": _bars(1.0, 1.0),
         },
     )
-    assert report.metrics["A500实际网格基准价"] == "1.050"
-    assert report.metrics["A500网格参数来源"] == "实际：2026-01-01 首笔A500买入价"
+    assert report.metrics["A500实际网格基准价"] == "1.025"
+    assert report.metrics["A500网格参数来源"] == "实际：A500当前持仓均价"
 
 
 def test_a500_actual_lower_edge_warns_pause_grid() -> None:
