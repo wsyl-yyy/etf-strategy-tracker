@@ -40,6 +40,10 @@ class A500GridParameters:
     upper: float
     source: str
     is_actual: bool
+    suggested_spacing: float | None = None
+
+
+A500_BASE_GRID_SPACING = 0.04
 
 
 def evaluate(
@@ -99,13 +103,15 @@ def _evaluate_a500(
     metrics["A500收盘价"] = f"{latest.close:.4f}"
     metrics["A500持仓份额"] = f"{position.shares:.0f}"
 
-    grid_spacing = float(symbol_config.get("grid_spacing", 0.058))
+    grid_spacing = float(symbol_config.get("grid_spacing", A500_BASE_GRID_SPACING))
     max_grid_buys = int(symbol_config.get("max_grid_buys", 5))
     grid_parameters = _a500_grid_parameters(config, portfolio, bars, grid_spacing, max_grid_buys)
     label = "实际" if grid_parameters.is_actual else "建议"
     metrics[f"A500{label}网格基准价"] = f"{grid_parameters.base_price:.3f}"
     metrics[f"A500{label}网格上沿"] = f"{grid_parameters.upper:.3f}"
     metrics[f"A500{label}网格下沿"] = f"{grid_parameters.lower:.3f}"
+    if grid_parameters.suggested_spacing is not None:
+        metrics["A500建议动态网格间距"] = f"{grid_parameters.suggested_spacing:.2%}"
     metrics["A500网格参数来源"] = grid_parameters.source
 
     if grid_parameters.is_actual:
@@ -286,17 +292,14 @@ def _a500_grid_parameters(
             is_actual=True,
         )
 
-    base_price, source = _a500_suggested_base_price(bars, grid_spacing)
-    return A500GridParameters(
-        base_price=base_price,
-        lower=_round_etf_price(base_price * (1 - grid_spacing * max_grid_buys)),
-        upper=base_price,
-        source=source,
-        is_actual=False,
-    )
+    return _a500_suggested_grid_parameters(bars)
 
 
 def _a500_actual_base_price(config: TrackerConfig, portfolio: PortfolioState) -> tuple[float, str] | None:
+    position = portfolio.positions.get(config.a500_code)
+    if position is None or position.shares <= 0:
+        return None
+
     buys = [trade for trade in portfolio.trades if trade.symbol == config.a500_code and trade.is_buy]
     base_buys = [trade for trade in buys if "底仓" in trade.module]
     if base_buys:
@@ -305,39 +308,35 @@ def _a500_actual_base_price(config: TrackerConfig, portfolio: PortfolioState) ->
         if shares > 0 and cost > 0:
             return cost / shares, "实际：A500底仓成交均价"
 
-    position = portfolio.positions.get(config.a500_code)
-    if position is not None and position.shares > 0 and position.avg_cost > 0:
+    if position.avg_cost > 0:
         return position.avg_cost, "实际：A500当前持仓均价"
 
     return None
 
 
-def _a500_suggested_base_price(bars: list[PriceBar], grid_spacing: float) -> tuple[float, str]:
-    latest_close = bars[-1].close
+def _a500_suggested_grid_parameters(bars: list[PriceBar]) -> A500GridParameters:
+    recent = bars[-20:] if len(bars) >= 20 else bars
+    base_price = _round_etf_price(sum(item.close for item in recent) / len(recent))
+    source = "建议：当前持仓为0，基准价为最近20日收盘均价"
     if len(bars) < 20:
-        return _floor_etf_price(latest_close), "建议：历史数据不足，使用最新收盘价"
+        source = f"建议：当前持仓为0，基准价为最近{len(recent)}日收盘均价"
 
-    ma20 = moving_average(bars, 20) or latest_close
-    ma60 = moving_average(bars, 60) or ma20
-    high20 = max(item.close for item in bars[-20:])
-    pullback_anchor = high20 * (1 - grid_spacing)
+    return A500GridParameters(
+        base_price=base_price,
+        lower=_round_etf_price(base_price * 0.82),
+        upper=_round_etf_price(base_price * 1.18),
+        source=source,
+        is_actual=False,
+        suggested_spacing=_a500_dynamic_grid_spacing(bars),
+    )
+
+
+def _a500_dynamic_grid_spacing(bars: list[PriceBar]) -> float:
+    latest_close = bars[-1].close
     atr20 = _average_true_range(bars, 20)
-    volatility_anchor = latest_close - atr20 * 0.5 if atr20 is not None else latest_close
-    percentile = _price_percentile(bars, 252)
-    percentile_discount = grid_spacing * max(0.0, percentile - 0.5)
-    percentile_anchor = latest_close * (1 - percentile_discount)
-
-    anchors = [
-        (latest_close, 0.20),
-        (ma20, 0.25),
-        (ma60, 0.20),
-        (pullback_anchor, 0.25),
-        (volatility_anchor, 0.05),
-        (percentile_anchor, 0.05),
-    ]
-    base_price = sum(min(anchor, latest_close) * weight for anchor, weight in anchors)
-    base_price = max(0.0, min(latest_close, base_price))
-    return _floor_etf_price(base_price), "建议：技术估值综合，最高不超过最新收盘价"
+    if atr20 is None or latest_close <= 0:
+        return A500_BASE_GRID_SPACING
+    return max(0.03, min(0.055, 0.8 * atr20 / latest_close))
 
 
 def _average_true_range(bars: list[PriceBar], window: int) -> float | None:
@@ -356,20 +355,8 @@ def _average_true_range(bars: list[PriceBar], window: int) -> float | None:
     return sum(values) / len(values) if values else None
 
 
-def _price_percentile(bars: list[PriceBar], lookback: int) -> float:
-    window = bars[-lookback:] if len(bars) >= lookback else bars
-    latest_close = bars[-1].close
-    if not window:
-        return 0.5
-    return sum(1 for item in window if item.close <= latest_close) / len(window)
-
-
 def _round_etf_price(value: float) -> float:
     return round(value + 1e-12, 3)
-
-
-def _floor_etf_price(value: float) -> float:
-    return int(max(0.0, value) * 1000 + 1e-12) / 1000
 
 
 def _reaches_threshold(value: float, threshold: float) -> bool:
