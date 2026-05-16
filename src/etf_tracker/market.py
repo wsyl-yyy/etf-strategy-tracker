@@ -12,13 +12,25 @@ def load_history(symbol: str, lookback_days: int = 420) -> list[PriceBar]:
     """Load ETF daily history.
 
     AKShare is preferred because it is easier to maintain. Eastmoney's public
-    kline endpoint is kept as a fallback so the workflow can still run when
-    AKShare changes packaging or is temporarily unavailable.
+    kline endpoint and Sina's ETF history are fallbacks so the workflow can
+    still run when one public data source is temporarily unavailable.
     """
-    try:
-        return _load_history_akshare(symbol, lookback_days)
-    except Exception:
-        return _load_history_eastmoney(symbol, lookback_days)
+    loaders = [
+        ("akshare fund_etf_hist_em", _load_history_akshare),
+        ("eastmoney kline", _load_history_eastmoney),
+        ("akshare fund_etf_hist_sina", _load_history_sina),
+    ]
+    errors: list[str] = []
+    for source, loader in loaders:
+        try:
+            bars = loader(symbol, lookback_days)
+            if bars:
+                return bars
+            raise ValueError("returned no rows")
+        except Exception as exc:
+            errors.append(f"{source}: {exc}")
+
+    raise RuntimeError(f"Unable to load ETF history for {symbol}; " + "; ".join(errors))
 
 
 def _load_history_akshare(symbol: str, lookback_days: int) -> list[PriceBar]:
@@ -26,7 +38,13 @@ def _load_history_akshare(symbol: str, lookback_days: int) -> list[PriceBar]:
 
     start = (date.today() - timedelta(days=lookback_days)).strftime("%Y%m%d")
     end = (date.today() + timedelta(days=7)).strftime("%Y%m%d")
-    frame = ak.fund_etf_hist_em(symbol=symbol, period="daily", start_date=start, end_date=end, adjust="qfq")
+    frame = ak.fund_etf_hist_em(
+        symbol=_bare_symbol(symbol),
+        period="daily",
+        start_date=start,
+        end_date=end,
+        adjust="qfq",
+    )
     bars: list[PriceBar] = []
     for _, row in frame.iterrows():
         bars.append(
@@ -46,8 +64,9 @@ def _load_history_akshare(symbol: str, lookback_days: int) -> list[PriceBar]:
 def _load_history_eastmoney(symbol: str, lookback_days: int) -> list[PriceBar]:
     start = (date.today() - timedelta(days=lookback_days)).strftime("%Y%m%d")
     end = (date.today() + timedelta(days=7)).strftime("%Y%m%d")
+    bare_symbol = _bare_symbol(symbol)
     params = {
-        "secid": f"1.{symbol}",
+        "secid": f"{_eastmoney_market_id(bare_symbol)}.{bare_symbol}",
         "klt": "101",
         "fqt": "1",
         "beg": start,
@@ -78,7 +97,52 @@ def _load_history_eastmoney(symbol: str, lookback_days: int) -> list[PriceBar]:
     return sorted(bars, key=lambda item: item.date)
 
 
+def _load_history_sina(symbol: str, lookback_days: int) -> list[PriceBar]:
+    import akshare as ak
+
+    start = date.today() - timedelta(days=lookback_days)
+    frame = ak.fund_etf_hist_sina(symbol=_sina_symbol(symbol))
+    bars: list[PriceBar] = []
+    prior_close: float | None = None
+    for _, row in frame.iterrows():
+        current_date = _to_date(row["date"])
+        close = float(row["close"])
+        if current_date >= start:
+            pct_change = 0.0
+            if prior_close is not None and prior_close != 0:
+                pct_change = (close - prior_close) / prior_close * 100
+            bars.append(
+                PriceBar(
+                    date=current_date,
+                    open=float(row["open"]),
+                    close=close,
+                    high=float(row["high"]),
+                    low=float(row["low"]),
+                    pct_change=pct_change,
+                    amount=0.0,
+                )
+            )
+        prior_close = close
+    return sorted(bars, key=lambda item: item.date)
+
+
+def _bare_symbol(symbol: str) -> str:
+    text = symbol.strip().lower()
+    if text.startswith(("sh", "sz")):
+        return text[2:]
+    return text
+
+
+def _eastmoney_market_id(symbol: str) -> str:
+    return "1" if _bare_symbol(symbol).startswith(("5", "6", "9")) else "0"
+
+
+def _sina_symbol(symbol: str) -> str:
+    bare_symbol = _bare_symbol(symbol)
+    exchange = "sh" if _eastmoney_market_id(bare_symbol) == "1" else "sz"
+    return f"{exchange}{bare_symbol}"
+
+
 def _to_date(value: object) -> date:
     text = str(value)
     return date.fromisoformat(text[:10])
-
