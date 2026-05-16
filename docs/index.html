@@ -7,42 +7,65 @@
     <style>
       :root {
         color-scheme: light;
-        --bg: #f6f7f9;
+        --bg: #eef2f5;
         --panel: #ffffff;
+        --panel-soft: #f8fafc;
         --text: #17202a;
         --muted: #65717f;
-        --line: #dde3ea;
+        --line: #d9e1ea;
         --accent: #0f766e;
         --accent-dark: #115e59;
+        --accent-soft: #e0f2f1;
+        --info: #2563eb;
+        --warning: #b45309;
         --danger: #b91c1c;
+        --danger-soft: #fee2e2;
         --ok: #047857;
+        --shadow: 0 16px 40px rgba(15, 23, 42, 0.08);
       }
       * {
         box-sizing: border-box;
       }
+      [hidden] {
+        display: none !important;
+      }
       body {
         margin: 0;
-        background: var(--bg);
+        background:
+          linear-gradient(180deg, #f8fafc 0, var(--bg) 260px),
+          var(--bg);
         color: var(--text);
         font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
         line-height: 1.55;
       }
       main {
-        max-width: 860px;
+        max-width: 1040px;
         margin: 0 auto;
-        padding: 24px 16px 48px;
+        padding: 28px 16px 48px;
       }
-      header {
+      .app-header {
+        display: flex;
+        align-items: flex-end;
+        justify-content: space-between;
+        gap: 16px;
         margin-bottom: 18px;
       }
+      .eyebrow {
+        margin: 0 0 4px;
+        color: var(--accent);
+        font-size: 13px;
+        font-weight: 700;
+      }
       h1 {
-        margin: 0 0 8px;
-        font-size: 28px;
+        margin: 0;
+        font-size: 30px;
+        line-height: 1.2;
         letter-spacing: 0;
       }
       h2 {
-        margin: 0 0 12px;
-        font-size: 20px;
+        margin: 0;
+        font-size: 19px;
+        line-height: 1.25;
       }
       label {
         display: grid;
@@ -56,12 +79,18 @@
         width: 100%;
         min-width: 0;
         border: 1px solid var(--line);
-        border-radius: 6px;
+        border-radius: 7px;
         background: #fff;
         color: var(--text);
         font: inherit;
         font-size: 16px;
         padding: 10px 11px;
+      }
+      input:focus,
+      select:focus,
+      textarea:focus {
+        border-color: var(--accent);
+        outline: 3px solid rgba(15, 118, 110, 0.16);
       }
       textarea {
         min-height: 78px;
@@ -69,33 +98,73 @@
       }
       button {
         border: 0;
-        border-radius: 6px;
+        border-radius: 7px;
         background: var(--accent);
         color: #fff;
+        cursor: pointer;
         font-size: 16px;
+        font-weight: 650;
         padding: 11px 16px;
       }
       button:disabled {
+        cursor: not-allowed;
         background: #9aa6b2;
       }
       button:active:not(:disabled) {
         background: var(--accent-dark);
+      }
+      .status-pill {
+        max-width: 360px;
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        background: #fff;
+        color: var(--muted);
+        font-size: 13px;
+        padding: 7px 12px;
+        text-align: right;
+        box-shadow: 0 8px 24px rgba(15, 23, 42, 0.05);
       }
       .muted {
         color: var(--muted);
         font-size: 14px;
       }
       .panel,
+      .tab-panel,
       article {
         background: var(--panel);
         border: 1px solid var(--line);
         border-radius: 8px;
+        box-shadow: 0 1px 0 rgba(15, 23, 42, 0.03);
+      }
+      .panel,
+      .tab-panel {
         padding: 16px;
       }
-      .panel + .panel,
-      .panel + article,
-      article + .panel {
-        margin-top: 16px;
+      .panel-head {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 16px;
+        margin-bottom: 14px;
+      }
+      .panel-kicker {
+        margin: 0 0 4px;
+        color: var(--muted);
+        font-size: 13px;
+      }
+      .unlock-card {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(300px, 420px);
+        gap: 16px;
+        margin-bottom: 16px;
+        padding: 18px;
+        box-shadow: var(--shadow);
+      }
+      .unlock-copy {
+        align-self: center;
+      }
+      .security-note {
+        margin: 8px 0 0;
       }
       .row {
         display: flex;
@@ -107,6 +176,114 @@
         grid-template-columns: repeat(2, minmax(0, 1fr));
         gap: 12px;
       }
+      .field {
+        display: grid;
+        gap: 6px;
+        color: var(--muted);
+        font-size: 14px;
+      }
+      .side-toggle {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 8px;
+      }
+      .side-option {
+        border: 1px solid var(--line);
+        background: #fff;
+        color: var(--muted);
+      }
+      .side-option.buy[aria-pressed="true"] {
+        border-color: rgba(4, 120, 87, 0.45);
+        background: var(--ok);
+        color: #fff;
+      }
+      .side-option.sell[aria-pressed="true"] {
+        border-color: rgba(185, 28, 28, 0.45);
+        background: var(--danger);
+        color: #fff;
+      }
+      .side-option.buy[aria-pressed="true"]:active:not(:disabled) {
+        background: #065f46;
+      }
+      .side-option.sell[aria-pressed="true"]:active:not(:disabled) {
+        background: #991b1b;
+      }
+      .trade-assist {
+        display: grid;
+        gap: 8px;
+        margin-top: 12px;
+      }
+      .trade-summary,
+      .trade-calc-hint {
+        border: 1px solid var(--line);
+        border-radius: 7px;
+        background: var(--panel-soft);
+        color: var(--muted);
+        font-size: 14px;
+        padding: 9px 11px;
+      }
+      .trade-summary.buy {
+        border-color: rgba(4, 120, 87, 0.24);
+        background: #ecfdf5;
+        color: var(--ok);
+      }
+      .trade-summary.sell,
+      .trade-calc-hint.warn {
+        border-color: #fecaca;
+        background: #fef2f2;
+        color: var(--danger);
+      }
+      .trade-calc-hint:empty {
+        display: none;
+      }
+      .trade-options {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px 18px;
+        margin-top: 12px;
+      }
+      .checkbox-field {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        color: var(--muted);
+        font-size: 14px;
+      }
+      .checkbox-field input[type="checkbox"] {
+        width: 16px;
+        min-width: 16px;
+        height: 16px;
+        padding: 0;
+      }
+      .task-tabs {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 8px;
+        margin-bottom: 12px;
+      }
+      .tab-button {
+        border: 1px solid var(--line);
+        background: rgba(255, 255, 255, 0.8);
+        color: var(--muted);
+      }
+      .tab-button[aria-selected="true"] {
+        border-color: rgba(15, 118, 110, 0.45);
+        background: var(--accent);
+        color: #fff;
+      }
+      .empty-report {
+        display: grid;
+        min-height: 220px;
+        place-items: center;
+        border: 1px dashed var(--line);
+        border-radius: 8px;
+        background: var(--panel-soft);
+        color: var(--muted);
+        text-align: center;
+      }
+      .empty-report p {
+        margin: 6px 0 0;
+      }
       .trade-list {
         display: grid;
         gap: 12px;
@@ -116,11 +293,67 @@
         border: 1px solid var(--line);
         border-radius: 8px;
         padding: 12px;
+        background: var(--panel-soft);
       }
-      .trade-card-title {
-        margin-bottom: 10px;
+      .trade-card.saved-highlight {
+        animation: saved-highlight 2.2s ease-out;
+      }
+      .trade-card-header {
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+        margin-bottom: 8px;
+      }
+      .trade-card-main {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 8px;
+      }
+      .trade-card-symbol,
+      .trade-card-amount {
+        color: var(--text);
+        font-size: 16px;
+        font-weight: 800;
+      }
+      .trade-card-meta,
+      .trade-card-note {
         color: var(--muted);
-        font-size: 14px;
+        font-size: 13px;
+      }
+      .trade-card-meta {
+        margin-top: 4px;
+      }
+      .trade-card-note {
+        margin: 0 0 10px;
+        overflow-wrap: anywhere;
+      }
+      .trade-side-badge {
+        display: inline-flex;
+        align-items: center;
+        border-radius: 999px;
+        font-size: 12px;
+        font-weight: 800;
+        line-height: 1;
+        padding: 5px 8px;
+      }
+      .trade-side-badge.buy {
+        background: #dcfce7;
+        color: var(--ok);
+      }
+      .trade-side-badge.sell {
+        background: var(--danger-soft);
+        color: var(--danger);
+      }
+      @keyframes saved-highlight {
+        0% {
+          border-color: rgba(4, 120, 87, 0.7);
+          box-shadow: 0 0 0 3px rgba(4, 120, 87, 0.14);
+        }
+        100% {
+          border-color: var(--line);
+          box-shadow: none;
+        }
       }
       .actions {
         display: flex;
@@ -149,26 +382,108 @@
       article {
         display: none;
         overflow-wrap: anywhere;
+        padding: 0;
       }
-      article h1 {
+      .report-heading {
+        padding: 18px 18px 0;
         font-size: 24px;
       }
-      article h2 {
-        margin-top: 24px;
-        border-bottom: 1px solid var(--line);
-        padding-bottom: 6px;
-        font-size: 19px;
+      .report-section {
+        border-top: 1px solid var(--line);
+        padding: 18px;
       }
-      article li {
-        margin: 7px 0;
+      .report-section:first-of-type {
+        border-top: 0;
+      }
+      .report-section h2 {
+        margin-bottom: 12px;
+      }
+      .report-section p {
+        margin: 0 0 10px;
+      }
+      .report-list {
+        display: grid;
+        gap: 9px;
+        margin: 0;
+        padding: 0;
+      }
+      .report-list li {
+        list-style: none;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: var(--panel-soft);
+        padding: 10px 12px;
+      }
+      .decision-section {
+        background: linear-gradient(180deg, #fff 0, #fff7ed 100%);
+      }
+      .decision-section .report-list li {
+        border-color: #fed7aa;
+        background: #fff7ed;
+      }
+      .notice-section .report-list li {
+        border-color: #fde68a;
+        background: #fffbeb;
+      }
+      .metrics-section .report-list,
+      .cash-section .report-list,
+      .holding-section .report-list {
+        grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
       }
       strong {
         color: var(--accent);
       }
+      .status-chip {
+        display: inline-flex;
+        align-items: center;
+        margin-right: 7px;
+        border-radius: 999px;
+        background: var(--accent-soft);
+        color: var(--accent-dark);
+        font-size: 12px;
+        font-weight: 800;
+        line-height: 1;
+        padding: 4px 7px;
+        vertical-align: 1px;
+      }
+      .status-chip.action {
+        background: var(--danger-soft);
+        color: var(--danger);
+      }
+      .status-chip.review,
+      .status-chip.warn {
+        background: #ffedd5;
+        color: var(--warning);
+      }
+      .status-chip.info {
+        background: #dbeafe;
+        color: var(--info);
+      }
+      @media (max-width: 760px) {
+        main {
+          padding-top: 20px;
+        }
+        .app-header {
+          align-items: stretch;
+          flex-direction: column;
+        }
+        .status-pill {
+          max-width: none;
+          text-align: left;
+        }
+        .unlock-card {
+          grid-template-columns: 1fr;
+        }
+      }
       @media (max-width: 560px) {
+        h1 {
+          font-size: 26px;
+        }
         .row,
         .grid,
-        .actions {
+        .actions,
+        .task-tabs,
+        .trade-options {
           grid-template-columns: 1fr;
           flex-direction: column;
         }
@@ -180,25 +495,52 @@
   </head>
   <body>
     <main>
-      <header>
-        <h1>ETF量化策略日报</h1>
-        <div class="muted" id="meta">加载加密报告中...</div>
+      <header class="app-header">
+        <div>
+          <p class="eyebrow">本地解密 · 成交回填 · 风险复盘</p>
+          <h1>ETF量化策略日报</h1>
+        </div>
+        <div class="status-pill" id="meta">加载加密报告中...</div>
       </header>
 
-      <section class="panel" id="unlock">
-        <h2>查看日报</h2>
-        <div class="muted">输入日报密码后在本机浏览器解密，密码不会发送到服务器。</div>
-        <div class="row">
-          <input id="password" type="password" autocomplete="current-password" placeholder="日报密码" />
-          <button id="decrypt">解密查看</button>
+      <section class="panel unlock-card" id="unlock">
+        <div class="unlock-copy">
+          <p class="panel-kicker">查看日报</p>
+          <h2>先解密，再看今日操作</h2>
+          <p class="muted security-note">日报密码只在本机浏览器用于解密，不会发送到服务器。</p>
         </div>
-        <div class="message error" id="error"></div>
+        <div>
+          <div class="row">
+            <input id="password" type="password" autocomplete="current-password" placeholder="日报密码" />
+            <button id="decrypt">解密查看</button>
+          </div>
+          <div class="message error" id="error"></div>
+        </div>
       </section>
 
-      <article id="report"></article>
+      <nav class="task-tabs" aria-label="页面功能">
+        <button class="tab-button" type="button" data-tab-target="report-panel" aria-selected="true">日报</button>
+        <button class="tab-button" type="button" data-tab-target="trade-panel" aria-selected="false">成交回填</button>
+        <button class="tab-button" type="button" data-tab-target="manage-panel" aria-selected="false">成交管理</button>
+      </nav>
 
-      <section class="panel" id="trade-panel">
-        <h2>成交回填</h2>
+      <section class="tab-panel" id="report-panel" data-tab-panel>
+        <div class="empty-report" id="report-empty">
+          <div>
+            <strong>日报已加密</strong>
+            <p>输入密码后，这里会显示今日结论、风险提醒和关键指标。</p>
+          </div>
+        </div>
+        <article id="report"></article>
+      </section>
+
+      <section class="panel tab-panel" id="trade-panel" data-tab-panel hidden>
+        <div class="panel-head">
+          <div>
+            <p class="panel-kicker">快速记一笔</p>
+            <h2>成交回填</h2>
+          </div>
+        </div>
         <form id="trade-form">
           <div class="grid">
             <label>
@@ -209,13 +551,14 @@
               标的
               <input id="trade-symbol" name="symbol" list="symbol-list" inputmode="numeric" placeholder="563360" required />
             </label>
-            <label>
-              方向
-              <select id="trade-side" name="side" required>
-                <option value="买入">买入</option>
-                <option value="卖出">卖出</option>
-              </select>
-            </label>
+            <div class="field">
+              <span>方向</span>
+              <input id="trade-side" name="side" type="hidden" value="买入" />
+              <div class="side-toggle" role="group" aria-label="买卖方向">
+                <button class="side-option buy" type="button" data-side-option="买入" aria-pressed="true">买入</button>
+                <button class="side-option sell" type="button" data-side-option="卖出" aria-pressed="false">卖出</button>
+              </div>
+            </div>
             <label>
               策略模块
               <input id="trade-module" name="module" list="module-list" placeholder="A500网格" />
@@ -245,6 +588,20 @@
               <textarea id="trade-note" name="note" placeholder="可选"></textarea>
             </label>
           </div>
+          <div class="trade-assist">
+            <div class="trade-summary" id="trade-summary" aria-live="polite">填写标的和金额后显示提交摘要。</div>
+            <div class="trade-calc-hint" id="trade-calc-hint" aria-live="polite"></div>
+          </div>
+          <div class="trade-options">
+            <label class="checkbox-field">
+              <input id="keep-trade-context" type="checkbox" />
+              保留标的、模块和方向
+            </label>
+            <label class="checkbox-field">
+              <input id="remember-submit-password" type="checkbox" />
+              本次会话记住提交密码
+            </label>
+          </div>
           <div class="row">
             <button id="submit-trade" type="submit">提交成交</button>
           </div>
@@ -262,8 +619,13 @@
         </datalist>
       </section>
 
-      <section class="panel" id="manage-panel">
-        <h2>成交管理</h2>
+      <section class="panel tab-panel" id="manage-panel" data-tab-panel hidden>
+        <div class="panel-head">
+          <div>
+            <p class="panel-kicker">修改或删除已记录成交</p>
+            <h2>成交管理</h2>
+          </div>
+        </div>
         <form id="manage-form">
           <div class="row">
             <input id="manage-password" type="password" autocomplete="current-password" placeholder="提交密码" required />
@@ -281,16 +643,34 @@
       const meta = document.getElementById("meta");
       const errorBox = document.getElementById("error");
       const reportNode = document.getElementById("report");
+      const reportEmpty = document.getElementById("report-empty");
       const unlockNode = document.getElementById("unlock");
       const tradeForm = document.getElementById("trade-form");
       const tradeMessage = document.getElementById("trade-message");
       const submitTradeButton = document.getElementById("submit-trade");
+      const tradeSummary = document.getElementById("trade-summary");
+      const tradeCalcHint = document.getElementById("trade-calc-hint");
+      const tradeSideInput = document.getElementById("trade-side");
+      const tradeSideButtons = Array.from(document.querySelectorAll("[data-side-option]"));
+      const tradeSymbolInput = document.getElementById("trade-symbol");
+      const tradeModuleInput = document.getElementById("trade-module");
+      const tradePriceInput = document.getElementById("trade-price");
+      const tradeAmountInput = document.getElementById("trade-amount");
+      const tradeSharesInput = document.getElementById("trade-shares");
+      const tradeFeeInput = document.getElementById("trade-fee");
+      const submitPasswordInput = document.getElementById("submit-password");
+      const keepTradeContextCheckbox = document.getElementById("keep-trade-context");
+      const rememberSubmitPasswordCheckbox = document.getElementById("remember-submit-password");
       const manageForm = document.getElementById("manage-form");
       const manageMessage = document.getElementById("manage-message");
       const loadTradesButton = document.getElementById("load-trades");
       const tradeList = document.getElementById("trade-list");
+      const tabButtons = Array.from(document.querySelectorAll("[data-tab-target]"));
+      const tabPanels = Array.from(document.querySelectorAll("[data-tab-panel]"));
+      const submitPasswordSessionKey = "etf-tracker-submit-password";
       let encryptedReport = null;
       let currentManagePassword = "";
+      let sharesAutoFilled = false;
 
       async function loadReport() {
         try {
@@ -325,7 +705,9 @@
           const markdown = await decryptPayload(encryptedReport, password);
           reportNode.innerHTML = renderMarkdown(markdown);
           reportNode.style.display = "block";
+          reportEmpty.hidden = true;
           unlockNode.style.display = "none";
+          showTab("report-panel");
         } catch (error) {
           errorBox.textContent = "密码错误或报告已损坏，无法解密。";
         }
@@ -365,43 +747,70 @@
         return bytes;
       }
 
+      function showTab(panelId) {
+        for (const panel of tabPanels) {
+          panel.hidden = panel.id !== panelId;
+        }
+        for (const button of tabButtons) {
+          button.setAttribute("aria-selected", String(button.dataset.tabTarget === panelId));
+        }
+      }
+
       function renderMarkdown(markdown) {
         const lines = markdown.split(/\r?\n/);
         let html = "";
         let inList = false;
+        let inSection = false;
+        const closeList = () => {
+          if (!inList) return;
+          html += "</ul>";
+          inList = false;
+        };
+        const closeSection = () => {
+          closeList();
+          if (!inSection) return;
+          html += "</section>";
+          inSection = false;
+        };
         for (const line of lines) {
           if (line.startsWith("# ")) {
-            if (inList) {
-              html += "</ul>";
-              inList = false;
-            }
-            html += `<h1>${inline(line.slice(2))}</h1>`;
+            closeSection();
+            html += `<h1 class="report-heading">${inline(line.slice(2))}</h1>`;
           } else if (line.startsWith("## ")) {
-            if (inList) {
-              html += "</ul>";
-              inList = false;
-            }
-            html += `<h2>${inline(line.slice(3))}</h2>`;
+            closeSection();
+            const title = line.slice(3);
+            html += `<section class="report-section ${sectionClassName(title)}"><h2>${inline(title)}</h2>`;
+            inSection = true;
           } else if (line.startsWith("- ")) {
             if (!inList) {
-              html += "<ul>";
+              html += '<ul class="report-list">';
               inList = true;
             }
             html += `<li>${inline(line.slice(2))}</li>`;
           } else if (line.trim()) {
-            if (inList) {
-              html += "</ul>";
-              inList = false;
-            }
+            closeList();
             html += `<p>${inline(line)}</p>`;
           }
         }
-        if (inList) html += "</ul>";
+        closeSection();
         return html;
       }
 
+      function sectionClassName(title) {
+        if (title.includes("今日结论")) return "decision-section";
+        if (title.includes("提醒")) return "notice-section";
+        if (title.includes("关键指标")) return "metrics-section";
+        if (title.includes("资金池")) return "cash-section";
+        if (title.includes("持仓")) return "holding-section";
+        return "";
+      }
+
       function inline(text) {
-        return escapeHtml(text).replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>");
+        return escapeHtml(text)
+          .replace(/\*\*\[(ACTION|REVIEW|INFO|WARN)\]\s*(.*?)\*\*/g, (_, level, label) => {
+            return `<strong><span class="status-chip ${level.toLowerCase()}">${level}</span> ${label}</strong>`;
+          })
+          .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>");
       }
 
       function escapeHtml(text) {
@@ -428,6 +837,30 @@
           .toISOString()
           .slice(0, 10);
         document.getElementById("trade-date").value = today;
+        const rememberedPassword = readSessionValue(submitPasswordSessionKey);
+        if (rememberedPassword) {
+          submitPasswordInput.value = rememberedPassword;
+          rememberSubmitPasswordCheckbox.checked = true;
+        }
+
+        setTradeSide(tradeSideInput.value || "买入");
+        for (const button of tradeSideButtons) {
+          button.addEventListener("click", () => setTradeSide(button.dataset.sideOption));
+        }
+        for (const input of [tradeSymbolInput, tradeAmountInput]) {
+          input.addEventListener("input", updateTradeSummary);
+        }
+        for (const input of [tradePriceInput, tradeAmountInput]) {
+          input.addEventListener("input", () => updateTradeCalculations(true));
+        }
+        tradeSharesInput.addEventListener("input", () => {
+          sharesAutoFilled = false;
+          updateTradeCalculations(false);
+        });
+        rememberSubmitPasswordCheckbox.addEventListener("change", syncRememberedSubmitPassword);
+        submitPasswordInput.addEventListener("input", syncRememberedSubmitPassword);
+        updateTradeSummary();
+        updateTradeCalculations(false);
 
         const urls = workerUrls();
         if (!urls.tradeSubmitUrl) {
@@ -457,9 +890,29 @@
             }
             tradeMessage.className = "message success";
             tradeMessage.textContent = "提交成功，日报会自动刷新。";
+            const keepContext = keepTradeContextCheckbox.checked;
+            const rememberPassword = rememberSubmitPasswordCheckbox.checked;
+            const keptSymbol = tradeSymbolInput.value;
+            const keptModule = tradeModuleInput.value;
+            const keptSide = tradeSideInput.value;
+            const keptPassword = submitPasswordInput.value;
             tradeForm.reset();
             document.getElementById("trade-date").value = today;
-            document.getElementById("trade-fee").value = "0";
+            tradeFeeInput.value = "0";
+            keepTradeContextCheckbox.checked = keepContext;
+            rememberSubmitPasswordCheckbox.checked = rememberPassword;
+            if (keepContext) {
+              tradeSymbolInput.value = keptSymbol;
+              tradeModuleInput.value = keptModule;
+            }
+            if (rememberPassword) {
+              submitPasswordInput.value = keptPassword;
+            }
+            setTradeSide(keepContext ? keptSide : "买入");
+            sharesAutoFilled = false;
+            syncRememberedSubmitPassword();
+            updateTradeSummary();
+            updateTradeCalculations(false);
           } catch (error) {
             tradeMessage.className = "message error";
             tradeMessage.textContent = error.message;
@@ -467,6 +920,70 @@
             submitTradeButton.disabled = false;
           }
         });
+      }
+
+      function setTradeSide(side) {
+        const nextSide = side === "卖出" ? "卖出" : "买入";
+        tradeSideInput.value = nextSide;
+        for (const button of tradeSideButtons) {
+          button.setAttribute("aria-pressed", String(button.dataset.sideOption === nextSide));
+        }
+        updateTradeSummary();
+      }
+
+      function updateTradeSummary() {
+        const symbol = tradeSymbolInput.value.trim();
+        const amount = Number(tradeAmountInput.value);
+        const side = tradeSideInput.value || "买入";
+        if (!symbol || !Number.isFinite(amount) || amount <= 0) {
+          tradeSummary.className = "trade-summary";
+          tradeSummary.textContent = "填写标的和金额后显示提交摘要。";
+          return;
+        }
+        tradeSummary.className = `trade-summary ${side === "卖出" ? "sell" : "buy"}`;
+        tradeSummary.textContent = `将记录 ${symbol} ${side} ${formatMoney(amount)} 元`;
+      }
+
+      function updateTradeCalculations(allowAutoFill) {
+        const price = Number(tradePriceInput.value);
+        const amount = Number(tradeAmountInput.value);
+        if (Number.isFinite(price) && price > 0 && Number.isFinite(amount) && amount > 0) {
+          const estimatedShares = amount / price;
+          if (allowAutoFill && (!tradeSharesInput.value || sharesAutoFilled)) {
+            tradeSharesInput.value = formatShares(estimatedShares);
+            sharesAutoFilled = true;
+          }
+        }
+
+        tradeCalcHint.className = "trade-calc-hint";
+        tradeCalcHint.textContent = "";
+        const shares = Number(tradeSharesInput.value);
+        if (
+          !Number.isFinite(price) ||
+          price <= 0 ||
+          !Number.isFinite(amount) ||
+          amount <= 0 ||
+          !Number.isFinite(shares) ||
+          shares <= 0
+        ) {
+          return;
+        }
+
+        const diff = price * shares - amount;
+        if (Math.abs(diff) >= 0.01) {
+          tradeCalcHint.classList.add("warn");
+          tradeCalcHint.textContent = `金额与份额约差 ${formatMoney(Math.abs(diff))} 元。`;
+        } else if (sharesAutoFilled) {
+          tradeCalcHint.textContent = `已按成交金额和成交价估算份额：${formatShares(shares)}。`;
+        }
+      }
+
+      function syncRememberedSubmitPassword() {
+        if (!rememberSubmitPasswordCheckbox.checked) {
+          removeSessionValue(submitPasswordSessionKey);
+          return;
+        }
+        writeSessionValue(submitPasswordSessionKey, submitPasswordInput.value);
       }
 
       function initTradeManagement() {
@@ -485,7 +1002,9 @@
         });
       }
 
-      async function loadManagedTrades() {
+      async function loadManagedTrades(options = {}) {
+        const successMessage = options.successMessage || "成交记录已加载。";
+        const highlightId = options.highlightId || "";
         const urls = workerUrls();
         manageMessage.className = "message";
         manageMessage.textContent = "正在加载...";
@@ -497,9 +1016,9 @@
             method: "POST",
             body: { submitPassword: currentManagePassword },
           });
-          renderTradeList(result.trades || []);
+          renderTradeList(result.trades || [], highlightId);
           manageMessage.className = "message success";
-          manageMessage.textContent = "成交记录已加载。";
+          manageMessage.textContent = successMessage;
         } catch (error) {
           manageMessage.className = "message error";
           manageMessage.textContent = error.message;
@@ -508,7 +1027,7 @@
         }
       }
 
-      function renderTradeList(trades) {
+      function renderTradeList(trades, highlightId = "") {
         tradeList.innerHTML = "";
         if (!trades.length) {
           tradeList.innerHTML = '<div class="muted">暂无成交记录。</div>';
@@ -519,8 +1038,25 @@
           const card = document.createElement("div");
           card.className = "trade-card";
           card.dataset.id = trade.id;
+          if (trade.id === highlightId) {
+            card.classList.add("saved-highlight");
+          }
+          const sideClass = trade.side === "卖出" ? "sell" : "buy";
+          const noteHtml = trade.note
+            ? `<div class="trade-card-note">备注：${escapeHtml(trade.note)}</div>`
+            : "";
           card.innerHTML = `
-            <div class="trade-card-title">${escapeHtml(trade.date || "")} · ${escapeHtml(trade.symbol || "")} · ${escapeHtml(trade.side || "")}</div>
+            <div class="trade-card-header">
+              <div>
+                <div class="trade-card-main">
+                  <span class="trade-side-badge ${sideClass}">${escapeHtml(trade.side || "")}</span>
+                  <span class="trade-card-symbol">${escapeHtml(trade.symbol || "")}</span>
+                  <span class="trade-card-amount">${formatMoney(Number(trade.amount))} 元</span>
+                </div>
+                <div class="trade-card-meta">${escapeHtml(trade.date || "")}${trade.module ? ` · ${escapeHtml(trade.module)}` : ""}</div>
+              </div>
+            </div>
+            ${noteHtml}
             <div class="grid">
               <label>日期<input data-field="date" type="date" value="${attr(trade.date)}" required /></label>
               <label>标的<input data-field="symbol" inputmode="numeric" value="${attr(trade.symbol)}" required /></label>
@@ -541,6 +1077,9 @@
           card.querySelector(".save-trade").addEventListener("click", () => saveManagedTrade(card));
           card.querySelector(".delete-trade").addEventListener("click", () => deleteManagedTrade(card));
           tradeList.appendChild(card);
+          if (trade.id === highlightId) {
+            window.setTimeout(() => card.classList.remove("saved-highlight"), 2200);
+          }
         }
       }
 
@@ -554,9 +1093,7 @@
             method: "PUT",
             body: { ...collectCardTrade(card), submitPassword: currentManagePassword },
           });
-          manageMessage.className = "message success";
-          manageMessage.textContent = "修改已保存，日报会自动刷新。";
-          await loadManagedTrades();
+          await loadManagedTrades({ successMessage: "修改已保存，列表已刷新。", highlightId: id });
         } catch (error) {
           manageMessage.className = "message error";
           manageMessage.textContent = error.message;
@@ -564,6 +1101,7 @@
       }
 
       async function deleteManagedTrade(card) {
+        if (!confirm("确认删除这笔成交记录？")) return;
         const urls = workerUrls();
         const id = card.dataset.id;
         manageMessage.className = "message";
@@ -573,9 +1111,7 @@
             method: "DELETE",
             body: { submitPassword: currentManagePassword },
           });
-          manageMessage.className = "message success";
-          manageMessage.textContent = "成交已删除，日报会自动刷新。";
-          await loadManagedTrades();
+          await loadManagedTrades({ successMessage: "成交已删除，列表已刷新。" });
         } catch (error) {
           manageMessage.className = "message error";
           manageMessage.textContent = error.message;
@@ -609,11 +1145,11 @@
 
       function collectTradePayload() {
         return {
-          submitPassword: document.getElementById("submit-password").value,
+          submitPassword: submitPasswordInput.value,
           date: document.getElementById("trade-date").value,
-          symbol: document.getElementById("trade-symbol").value.trim(),
-          side: document.getElementById("trade-side").value,
-          module: document.getElementById("trade-module").value.trim(),
+          symbol: tradeSymbolInput.value.trim(),
+          side: tradeSideInput.value,
+          module: tradeModuleInput.value.trim(),
           price: numberValue("trade-price"),
           amount: numberValue("trade-amount"),
           shares: numberValue("trade-shares"),
@@ -641,6 +1177,43 @@
         return value === "" ? 0 : Number(value);
       }
 
+      function formatMoney(value) {
+        if (!Number.isFinite(value)) return "0";
+        return value.toLocaleString("zh-CN", {
+          minimumFractionDigits: Number.isInteger(value) ? 0 : 2,
+          maximumFractionDigits: 2,
+        });
+      }
+
+      function formatShares(value) {
+        if (!Number.isFinite(value)) return "";
+        return String(Math.round(value * 100) / 100);
+      }
+
+      function readSessionValue(key) {
+        try {
+          return sessionStorage.getItem(key) || "";
+        } catch (error) {
+          return "";
+        }
+      }
+
+      function writeSessionValue(key, value) {
+        try {
+          sessionStorage.setItem(key, value);
+        } catch (error) {
+          // Some privacy modes block sessionStorage; the form still works without it.
+        }
+      }
+
+      function removeSessionValue(key) {
+        try {
+          sessionStorage.removeItem(key);
+        } catch (error) {
+          // Some privacy modes block sessionStorage; the form still works without it.
+        }
+      }
+
       function attr(value) {
         return escapeHtml(String(value ?? ""));
       }
@@ -649,6 +1222,9 @@
       document.getElementById("password").addEventListener("keydown", (event) => {
         if (event.key === "Enter") decryptReport();
       });
+      for (const button of tabButtons) {
+        button.addEventListener("click", () => showTab(button.dataset.tabTarget));
+      }
       loadReport();
       initTradeForm();
       initTradeManagement();
