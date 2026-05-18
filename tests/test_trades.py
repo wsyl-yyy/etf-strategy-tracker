@@ -39,6 +39,65 @@ def test_worker_payload_maps_trade_fields() -> None:
     assert trade.fee == pytest.approx(0.06)
 
 
+def test_worker_payload_maps_audit_fields_and_keeps_date_compatibility() -> None:
+    trades = _trades_from_worker_payload(
+        {
+            "trades": [
+                {
+                    "date": "2026-05-12",
+                    "signal_date": "2026-05-11",
+                    "execution_date": "2026-05-12",
+                    "symbol": "563360",
+                    "side": "买入",
+                    "module": "A500网格",
+                    "trigger_rule": "A500第2格补仓",
+                    "price": 1.032,
+                    "amount": 600,
+                    "shares": 500,
+                    "fee": 0.06,
+                    "cash_balance": 4380,
+                    "risk_gate_triggered": True,
+                    "risk_gate_snapshot": "H1: allow=false",
+                    "compliance_warnings": ["科创50买入份额不是100份整数倍。"],
+                    "note": "测试成交",
+                }
+            ]
+        }
+    )
+
+    trade = trades[0]
+    assert trade.date == date(2026, 5, 12)
+    assert trade.signal_date == date(2026, 5, 11)
+    assert trade.execution_date == date(2026, 5, 12)
+    assert trade.trigger_rule == "A500第2格补仓"
+    assert trade.cash_balance == pytest.approx(4380)
+    assert trade.risk_gate_triggered is True
+    assert trade.risk_gate_snapshot == "H1: allow=false"
+    assert trade.compliance_warnings == ["科创50买入份额不是100份整数倍。"]
+
+
+def test_worker_payload_old_date_fills_signal_and_execution_dates() -> None:
+    trades = _trades_from_worker_payload(
+        {
+            "trades": [
+                {
+                    "date": "2026-05-12",
+                    "symbol": "563360",
+                    "side": "买入",
+                    "module": "A500网格",
+                    "price": 1.032,
+                    "amount": 600,
+                    "shares": 500,
+                }
+            ]
+        }
+    )
+
+    trade = trades[0]
+    assert trade.signal_date == date(2026, 5, 12)
+    assert trade.execution_date == date(2026, 5, 12)
+
+
 def test_worker_payload_rejects_unexpected_shape() -> None:
     with pytest.raises(ValueError):
         _trades_from_worker_payload({"trades": {"date": "2026-05-11"}})

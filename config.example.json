@@ -7,12 +7,21 @@
     "kc50_wave": 2000,
     "reserve": 3000
   },
+  "account": {
+    "locked_cash": 0,
+    "peak_value": 10000,
+    "strategy_start_date": ""
+  },
+  "benchmarks": {
+    "hs300_return": null,
+    "money_fund_return": null
+  },
   "symbols": {
     "a500": {
       "code": "563360",
       "name": "华泰柏瑞中证A500ETF",
       "grid_base_price": null,
-      "grid_spacing": 0.04,
+      "grid_spacing": 0.055,
       "grid_lower": null,
       "grid_upper": null,
       "base_position_amount": 1000,
@@ -35,19 +44,40 @@
     "a500_source": "待填写",
     "kc50_source": "待填写",
     "mode": "manual_or_public",
+    "source": "待填写",
+    "as_of": "",
+    "a500_percentile": null,
+    "kc50_percentile": null,
+    "kc50_pe_percentile": null,
+    "kc50_pb_percentile": null,
     "note": "估值分位自动源不稳定时，日报仅提示人工复核。"
+  },
+  "reserve": {
+    "kc50_recovery": {
+      "confirmed": false,
+      "source": "",
+      "as_of": "",
+      "note": "",
+      "max_amount": 1000
+    }
   },
   "google_sheet": {
     "range": "Form Responses 1!A:Z",
     "header_aliases": {
       "date": ["日期", "信号确认日", "成交日期", "Timestamp"],
+      "signal_date": ["信号确认日"],
+      "execution_date": ["实际执行日", "执行日期"],
       "symbol": ["标的", "代码", "ETF代码"],
       "side": ["方向", "买卖方向", "买入/卖出"],
       "module": ["策略模块", "模块"],
+      "trigger_rule": ["触发规则"],
       "price": ["成交价", "执行价格"],
       "amount": ["成交金额", "执行金额", "金额"],
       "shares": ["成交份额", "执行份额", "份额"],
       "fee": ["交易费用", "费用", "交易成本"],
+      "cash_balance": ["现金余额"],
+      "risk_gate_triggered": ["是否触发风险闸门"],
+      "risk_gate_snapshot": ["风险闸门快照"],
       "note": ["备注", "复盘备注"]
     }
   }

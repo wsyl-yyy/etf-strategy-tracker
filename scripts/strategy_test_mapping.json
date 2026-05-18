@@ -1,0 +1,2688 @@
+{
+  "title": "策略逐条测试反馈",
+  "default": {
+    "status": "uncovered",
+    "evidence": [
+      "未找到明确实现和自动化测试证据。"
+    ]
+  },
+  "commandResults": [
+    {
+      "name": "Python 策略测试",
+      "status": "pass",
+      "command": "C:\\Users\\berna\\AppData\\Local\\Programs\\Python\\Python311\\python.exe -m pytest",
+      "detail": "本次验证 65 个 Python 测试全部通过，覆盖策略评估、资金池、指标、成交解析和日报渲染。若本地 .venv 报 No Python，可使用该 Python 3.11 路径复验。"
+    },
+    {
+      "name": "Worker 语法检查",
+      "status": "pass",
+      "command": "node --check cloudflare-worker\\worker.js",
+      "detail": "本次验证 node --check cloudflare-worker\\worker.js 退出码为 0。"
+    },
+    {
+      "name": "Worker API 测试",
+      "status": "pass",
+      "command": "node --test tests\\worker.test.mjs",
+      "detail": "本次验证 7 个 Worker 测试全部通过，覆盖成交 CRUD、审计字段、科创50合规警告、旧字段兼容和权限。"
+    },
+    {
+      "name": "策略报告生成器测试",
+      "status": "pass",
+      "command": "node --test tests\\strategy_report_generator.test.mjs",
+      "detail": "本次验证 3 个策略报告生成器测试全部通过，覆盖映射汇总、真实策略文档 fail/uncovered 归零门禁和空清单展示。"
+    }
+  ],
+  "sectionDefaults": [
+    {
+      "id": "DOC-META",
+      "status": "manual",
+      "match": {
+        "sectionIncludes": [
+          "文档元信息"
+        ]
+      },
+      "evidence": [
+        "文档标题、版本、日期和风险提示属于交付说明，不属于程序行为。"
+      ]
+    },
+    {
+      "id": "REVIEW-DEFAULT",
+      "status": "manual",
+      "match": {
+        "sectionIncludes": [
+          "季度复核清单"
+        ]
+      },
+      "evidence": [
+        "季度复核依赖人工确认和外部材料，当前系统不应自动替代复核人。"
+      ]
+    },
+    {
+      "id": "SETUP-DEFAULT",
+      "status": "manual",
+      "match": {
+        "sectionIncludes": [
+          "执行前设置与成本附录"
+        ]
+      },
+      "evidence": [
+        "估值平台、券商费率、截图或数据存档方式需要交付前人工填写和确认。"
+      ]
+    },
+    {
+      "id": "REFERENCE-DEFAULT",
+      "status": "manual",
+      "match": {
+        "sectionIncludes": [
+          "第三层：参考指引"
+        ]
+      },
+      "evidence": [
+        "S1/S2 为参考指引，系统目前以提示和人工复核为主。"
+      ]
+    }
+  ],
+  "rules": [
+    {
+      "id": "CAPITAL-10000",
+      "status": "pass",
+      "match": {
+        "textIncludes": [
+          "总资金",
+          "10000"
+        ]
+      },
+      "evidence": [
+        "config.example.json 配置 total_capital=10000。",
+        "tests/test_strategy.py 的配置夹具按 10000 元构造。"
+      ]
+    },
+    {
+      "id": "FUNDS-POOLS",
+      "status": "pass",
+      "match": {
+        "textIncludes": [
+          "A500常规网格池",
+          "科创50波段池",
+          "全局备用金"
+        ]
+      },
+      "evidence": [
+        "config.example.json 定义 a500_grid、kc50_wave、reserve 三个资金池。",
+        "tests/test_accounting.py 覆盖资金池初始余额和独立归属。"
+      ]
+    },
+    {
+      "id": "INVESTED-COST-FEE-MISMATCH",
+      "status": "pass",
+      "match": {
+        "textIncludes": [
+          "已投入成本",
+          "按成交金额计算"
+        ]
+      },
+      "evidence": [
+        "src/etf_tracker/models.py 的 Position.apply 已按成交金额累计投入成本，不再把交易费用计入 cost。",
+        "tests/test_accounting.py 覆盖买入金额1000、费用1时投入成本仍为1000，现金扣减包含费用。"
+      ]
+    },
+    {
+      "id": "FLOATING-LOSS-RATIO",
+      "status": "pass",
+      "match": {
+        "textIncludes": [
+          "总持仓浮亏比例"
+        ]
+      },
+      "evidence": [
+        "src/etf_tracker/strategy.py 已按 max(0, 投入成本-当前市值)/投入成本 输出非负浮亏比例。",
+        "tests/test_strategy.py 覆盖亏损10%和盈利时0%两种口径。"
+      ]
+    },
+    {
+      "id": "A500-BASE-PRICE",
+      "status": "pass",
+      "match": {
+        "textIncludes": [
+          "A500网格基准价"
+        ]
+      },
+      "evidence": [
+        "src/etf_tracker/strategy.py 使用 A500 底仓买入均价生成实际网格基准。",
+        "tests/test_strategy.py 覆盖底仓成交均价、底仓优先和当前持仓均价回退。"
+      ]
+    },
+    {
+      "id": "NEW-LOW",
+      "status": "pass",
+      "match": {
+        "textIncludes": [
+          "20日新低"
+        ]
+      },
+      "evidence": [
+        "src/etf_tracker/indicators.py 实现 is_20_day_new_low。",
+        "tests/test_indicators.py 覆盖低于前20日低点触发、等于前低不触发。"
+      ]
+    },
+    {
+      "id": "CORRELATION",
+      "status": "pass",
+      "match": {
+        "textIncludes": [
+          "20日收益相关系数"
+        ]
+      },
+      "evidence": [
+        "src/etf_tracker/indicators.py 实现 correlation，src/etf_tracker/strategy.py 输出20日收益相关系数。",
+        "tests/test_indicators.py 覆盖20日收益相关系数计算。"
+      ]
+    },
+    {
+      "id": "VOLATILITY",
+      "status": "pass",
+      "match": {
+        "textIncludes": [
+          "20日年化波动率"
+        ]
+      },
+      "evidence": [
+        "src/etf_tracker/indicators.py 实现 annualized_volatility，src/etf_tracker/strategy.py 输出科创50 20日年化波动率。",
+        "tests/test_indicators.py 覆盖20日年化波动率计算。"
+      ]
+    },
+    {
+      "id": "POOL-INDEPENDENCE",
+      "status": "pass",
+      "match": {
+        "textAny": [
+          "相互独立",
+          "只回到A500常规网格池",
+          "只回到科创50波段现金余额"
+        ]
+      },
+      "evidence": [
+        "src/etf_tracker/portfolio.py 按标的和模块归属资金池，A500、科创50、备用金互不静默调拨。",
+        "tests/test_accounting.py 覆盖科创50卖出只回到 kc50_wave、A500备用金交易只动用 reserve。"
+      ]
+    },
+    {
+      "id": "RESERVE-SAFETY-CUSHION",
+      "status": "pass",
+      "match": {
+        "textAny": [
+          "心理安全垫",
+          "最多动用2000元",
+          "至少保留1份"
+        ]
+      },
+      "evidence": [
+        "src/etf_tracker/strategy.py 输出备用金未回收动用和安全垫状态，超过2000元或低于1000元时给出 WARN。",
+        "tests/test_strategy.py 覆盖备用金安全垫不足时阻断提醒。"
+      ]
+    },
+    {
+      "id": "H1-RISK-GATE",
+      "status": "pass",
+      "match": {
+        "textIncludes": [
+          "H1"
+        ]
+      },
+      "evidence": [
+        "src/etf_tracker/strategy.py 在70%-85%投入区间生成总风险闸门结论，并把未通过时的新增买入候选转为禁止。",
+        "tests/test_strategy.py 覆盖闸门通过、参考条件不足和候选买入被阻断。"
+      ]
+    },
+    {
+      "id": "H2-85-BLOCK",
+      "status": "pass",
+      "match": {
+        "textIncludes": [
+          "H2"
+        ]
+      },
+      "evidence": [
+        "src/etf_tracker/strategy.py 在总投入成本达到85%时输出禁止新增买入，并将已有买入候选改为禁止提示。",
+        "tests/test_strategy.py 覆盖85%绝对上限和候选买入阻断。"
+      ]
+    },
+    {
+      "id": "H3-NET-VALUE",
+      "status": "pass",
+      "match": {
+        "textIncludes": [
+          "H3"
+        ]
+      },
+      "evidence": [
+        "src/etf_tracker/strategy.py 覆盖1700/1500/1400三档H3净值信号。",
+        "tests/test_strategy.py 覆盖低于1500减仓和低于1400清仓优先级。"
+      ]
+    },
+    {
+      "id": "H4-DROP-8",
+      "status": "pass",
+      "match": {
+        "textIncludes": [
+          "H4"
+        ]
+      },
+      "evidence": [
+        "src/etf_tracker/strategy.py 识别科创50 pct_change <= -8 的暂停提醒。",
+        "tests/test_strategy.py 覆盖单日跌幅超过8%的自动化测试。"
+      ]
+    },
+    {
+      "id": "H5-A500-LOWER",
+      "status": "pass",
+      "match": {
+        "textIncludes": [
+          "H5"
+        ]
+      },
+      "evidence": [
+        "src/etf_tracker/strategy.py 输出 A500 跌破网格下沿暂停普通网格补仓。",
+        "tests/test_strategy.py 覆盖 test_a500_actual_lower_edge_warns_pause_grid。"
+      ]
+    },
+    {
+      "id": "H6-RESTART",
+      "status": "pass",
+      "match": {
+        "textIncludes": [
+          "H6"
+        ]
+      },
+      "evidence": [
+        "src/etf_tracker/strategy.py 从清仓成交推导 H6 冷却交易日，未满5个交易日阻断该标的新增买入。",
+        "tests/test_phase_three_strategy.py 覆盖第4个交易日阻断、第5个交易日重启试探仓和重锁指标展示。"
+      ]
+    },
+    {
+      "id": "H7-THREE-LOSS-BUYS",
+      "status": "pass",
+      "match": {
+        "textIncludes": [
+          "H7"
+        ]
+      },
+      "evidence": [
+        "src/etf_tracker/strategy.py 对每笔新增买入定位第10个交易日复核价，连续3笔仍浮亏且当前仍浮亏时暂停新增买入。",
+        "tests/test_phase_three_strategy.py 覆盖同一标的连续3笔10日复核仍浮亏的 H7 阻断。"
+      ]
+    },
+    {
+      "id": "RISK-GATE-STANDARD",
+      "status": "pass",
+      "match": {
+        "sectionIncludes": [
+          "总风险闸门"
+        ],
+        "textAny": [
+          "2项硬条件",
+          "3项参考条件",
+          "检查表",
+          "是否允许新增买入"
+        ]
+      },
+      "evidence": [
+        "src/etf_tracker/strategy.py 实现2项硬条件、3项参考条件、通过数和允许/禁止结论。",
+        "tests/test_strategy.py 覆盖全通过、参考不足、85%上限等闸门标准。"
+      ]
+    },
+    {
+      "id": "TREND-GATE",
+      "status": "pass",
+      "match": {
+        "sectionIncludes": [
+          "双标的趋势判定"
+        ]
+      },
+      "evidence": [
+        "src/etf_tracker/strategy.py 将双标的弱势判定接入H1硬条件。",
+        "tests/test_strategy.py 覆盖双标的同时弱势时硬条件不通过。"
+      ]
+    },
+    {
+      "id": "A500-SYMBOL",
+      "status": "pass",
+      "match": {
+        "textIncludes": [
+          "正式执行标的",
+          "563360"
+        ]
+      },
+      "evidence": [
+        "config.example.json 固定 A500 code=563360。",
+        "tests/test_market.py 覆盖 563360 的交易所前缀和行情源参数。"
+      ]
+    },
+    {
+      "id": "A500-GRID-SPACING-MISMATCH",
+      "status": "pass",
+      "match": {
+        "textIncludes": [
+          "网格间距",
+          "5.5%-6%"
+        ]
+      },
+      "evidence": [
+        "config.example.json 将 A500 grid_spacing 更新为 5.5%。",
+        "src/etf_tracker/strategy.py 实际网格默认使用 5.5%，tests/test_phase_two_strategy.py 覆盖默认间距。"
+      ]
+    },
+    {
+      "id": "A500-INITIAL-BASE",
+      "status": "pass",
+      "match": {
+        "textIncludes": [
+          "初始底仓",
+          "1000"
+        ]
+      },
+      "evidence": [
+        "config.example.json 定义 base_position_amount=1000。",
+        "tests/test_strategy.py 和 tests/test_phase_two_strategy.py 覆盖 A500 初始底仓生成实际网格基准，且无持仓时只展示建议参数。"
+      ]
+    },
+    {
+      "id": "A500-GRID-BUY",
+      "status": "pass",
+      "match": {
+        "textIncludes": [
+          "每下跌一个网格间距",
+          "买入600元"
+        ]
+      },
+      "evidence": [
+        "src/etf_tracker/strategy.py 根据实际基准价、5.5% 间距和开放档位生成普通网格补仓候选。",
+        "tests/test_phase_two_strategy.py 覆盖第1格触发、已成交档位去重和单边保护阻断。"
+      ]
+    },
+    {
+      "id": "A500-GRID-SELL",
+      "status": "pass",
+      "match": {
+        "textIncludes": [
+          "上涨一个网格间距",
+          "卖出该笔补仓"
+        ]
+      },
+      "evidence": [
+        "src/etf_tracker/strategy.py 从触发规则推导网格档位并按逐笔买入价 + 一个网格间距生成配对卖出。",
+        "tests/test_phase_two_strategy.py 覆盖 0.900 买入、0.950 触发卖出且按剩余份额提示。"
+      ]
+    },
+    {
+      "id": "A500-NO-BROKER",
+      "status": "manual",
+      "match": {
+        "textAny": [
+          "盘中触价条件单",
+          "限价委托",
+          "不设置底仓自动清仓条件单"
+        ]
+      },
+      "evidence": [
+        "本项目定位为记录、复盘和提醒，不连接券商、不自动下单。"
+      ]
+    },
+    {
+      "id": "A500-BASE-PROFIT-15",
+      "status": "pass",
+      "match": {
+        "textIncludes": [
+          "底仓盈利达到15%"
+        ]
+      },
+      "evidence": [
+        "src/etf_tracker/strategy.py 独立追踪 A500 底仓成本和第一次止盈状态。",
+        "tests/test_phase_two_strategy.py 覆盖底仓盈利15%触发且已记录第一次止盈后不重复。"
+      ]
+    },
+    {
+      "id": "A500-BASE-TRAIL-8",
+      "status": "pass",
+      "match": {
+        "textIncludes": [
+          "回撤8%"
+        ]
+      },
+      "evidence": [
+        "src/etf_tracker/strategy.py 根据第一次底仓止盈后的行情追踪阶段高点并判断8%回撤。",
+        "tests/test_phase_two_strategy.py 覆盖阶段高点更新和剩余底仓回撤止盈。"
+      ]
+    },
+    {
+      "id": "A500-DOWNTREND-PROTECT",
+      "status": "pass",
+      "match": {
+        "textAny": [
+          "连续3格补仓",
+          "连续10个交易日低于网格下沿",
+          "连续5个交易日维持在区间内"
+        ]
+      },
+      "evidence": [
+        "src/etf_tracker/strategy.py 在3笔开放补仓或连续10日低于下沿时暂停普通网格补仓。",
+        "tests/test_phase_two_strategy.py 覆盖连续3格开放补仓阻断第4格候选。"
+      ]
+    },
+    {
+      "id": "A500-UPTREND-PROTECT",
+      "status": "pass",
+      "match": {
+        "textIncludes": [
+          "连续10个交易日高于网格上沿"
+        ]
+      },
+      "evidence": [
+        "src/etf_tracker/strategy.py 检查最近 10 日均高于上沿。",
+        "tests/test_strategy.py 覆盖 test_a500_actual_upper_edge_warns_after_10_days。"
+      ]
+    },
+    {
+      "id": "A500-RESERVE-MANUAL",
+      "status": "manual",
+      "match": {
+        "sectionIncludes": [
+          "A500备用金规则"
+        ],
+        "textAny": [
+          "估值",
+          "人工复核",
+          "跌破网格下沿"
+        ]
+      },
+      "evidence": [
+        "A500 备用金规则依赖估值分位和人工复核，当前系统只在跌破下沿后提示人工候选。"
+      ]
+    },
+    {
+      "id": "A500-RESERVE-LIMITS",
+      "status": "pass",
+      "match": {
+        "sectionIncludes": [
+          "A500备用金规则"
+        ],
+        "textAny": [
+          "最大动用金额",
+          "间隔",
+          "盈利10%-15%",
+          "亏损超过8%",
+          "亏损超过12%"
+        ]
+      },
+      "evidence": [
+        "src/etf_tracker/strategy.py 输出 A/B/C 备用金候选、20日动用间隔、备用金持仓浮盈亏、8%暂停和12%复核。",
+        "tests/test_phase_two_strategy.py 覆盖备用金 A/B/C 候选、估值要求和备用金亏损边界。"
+      ]
+    },
+    {
+      "id": "KC50-SYMBOL",
+      "status": "pass",
+      "match": {
+        "textIncludes": [
+          "正式执行标的",
+          "588000"
+        ]
+      },
+      "evidence": [
+        "config.example.json 固定 kc50 code=588000。",
+        "tests/test_market.py 覆盖 588000 的交易所前缀和行情源参数。"
+      ]
+    },
+    {
+      "id": "KC50-CLOSE-BASED",
+      "status": "manual",
+      "match": {
+        "sectionIncludes": [
+          "统一触发口径"
+        ]
+      },
+      "evidence": [
+        "策略判断使用日线收盘价；次日开盘执行、限价委托和异常流动性处理属于人工下单流程。"
+      ]
+    },
+    {
+      "id": "KC50-FIRST-BUY",
+      "status": "pass",
+      "match": {
+        "textIncludes": [
+          "第一笔",
+          "22%"
+        ]
+      },
+      "evidence": [
+        "src/etf_tracker/strategy.py 根据近 252 日高点回撤识别第一笔。",
+        "tests/test_strategy.py 覆盖第一笔触发和未触发提示。"
+      ]
+    },
+    {
+      "id": "KC50-SECOND-THIRD-BUY",
+      "status": "pass",
+      "match": {
+        "textAny": [
+          "第二笔",
+          "第三笔"
+        ]
+      },
+      "evidence": [
+        "src/etf_tracker/strategy.py 按累计买入金额和配置 buy_steps 推进第二、第三笔候选。",
+        "tests/test_phase_two_strategy.py 覆盖已买第一笔触发第二笔、已买前两笔触发第三笔。"
+      ]
+    },
+    {
+      "id": "KC50-FOURTH-BUY",
+      "status": "pass",
+      "match": {
+        "textAny": [
+          "第四笔",
+          "第4笔"
+        ]
+      },
+      "evidence": [
+        "src/etf_tracker/strategy.py 第4笔要求已有第三笔、近5日不创新低、站上5日均线且 PE/PB 至少一项低于25%。",
+        "tests/test_phase_two_strategy.py 覆盖第4笔过滤条件通过后的候选。"
+      ]
+    },
+    {
+      "id": "KC50-VALUATION-CROSS",
+      "status": "pass",
+      "match": {
+        "textAny": [
+          "估值交叉验证",
+          "估值仍高于历史50%分位",
+          "估值回落至历史50%分位"
+        ]
+      },
+      "evidence": [
+        "src/etf_tracker/strategy.py 使用手工估值分位判断第一笔22%触发时是否延后，并允许25%回撤重新触发。",
+        "tests/test_phase_two_strategy.py 覆盖估值高于50%延后和更深回撤触发。"
+      ]
+    },
+    {
+      "id": "KC50-LOT-SIZE",
+      "status": "pass",
+      "match": {
+        "textIncludes": [
+          "100份整数"
+        ]
+      },
+      "evidence": [
+        "cloudflare-worker/worker.js 对科创50买入校验100份整数倍和档位目标金额。",
+        "tests/worker.test.mjs 覆盖无备注拒绝、带复盘备注保存并写入 compliance_warnings。"
+      ]
+    },
+    {
+      "id": "KC50-PROFIT-TAKE",
+      "status": "pass",
+      "match": {
+        "textAny": [
+          "盈利15%",
+          "盈利30%",
+          "卖出1/3"
+        ]
+      },
+      "evidence": [
+        "src/etf_tracker/strategy.py 按已记录止盈状态避免重复提示15%/30%固定止盈。",
+        "tests/test_phase_two_strategy.py 覆盖15%固定止盈和已记录止盈后的不重复。"
+      ]
+    },
+    {
+      "id": "KC50-TRAILING-PROFIT",
+      "status": "pass",
+      "match": {
+        "textAny": [
+          "移动止盈",
+          "回撤12%",
+          "连续2个交易日收盘价跌破10日均线"
+        ]
+      },
+      "evidence": [
+        "src/etf_tracker/strategy.py 第二次止盈后追踪阶段高点，按12%/13%回撤或连续2日跌破10日均线提示移动止盈。",
+        "tests/test_phase_two_strategy.py 覆盖移动止盈触发和 S2 高波动13%阈值。"
+      ]
+    },
+    {
+      "id": "KC50-NET-1700",
+      "status": "pass",
+      "match": {
+        "textIncludes": [
+          "低于1700元"
+        ]
+      },
+      "evidence": [
+        "src/etf_tracker/strategy.py 在科创50波段净值低于1700时停止新增买入并阻断候选。",
+        "tests/test_phase_two_strategy.py 覆盖低于1700时将新增买入候选转为禁止。"
+      ]
+    },
+    {
+      "id": "KC50-NET-1500",
+      "status": "pass",
+      "match": {
+        "textIncludes": [
+          "低于1500元"
+        ]
+      },
+      "evidence": [
+        "src/etf_tracker/strategy.py 有低于 1500 的减仓 1/2 信号。",
+        "tests/test_strategy.py 覆盖 test_kc50_h3_signal_when_net_value_below_1500。"
+      ]
+    },
+    {
+      "id": "KC50-NET-1400",
+      "status": "pass",
+      "match": {
+        "textIncludes": [
+          "低于1400元"
+        ]
+      },
+      "evidence": [
+        "src/etf_tracker/strategy.py 在净值低于1400时优先提示清仓。",
+        "tests/test_strategy.py 覆盖1400优先于1500减仓信号。"
+      ]
+    },
+    {
+      "id": "KC50-RECOVER-1800",
+      "status": "pass",
+      "match": {
+        "textIncludes": [
+          "1800元以上"
+        ]
+      },
+      "evidence": [
+        "src/etf_tracker/strategy.py 从 H3 成交记录推导恢复状态，要求连续5个交易日净值高于1800。",
+        "tests/test_phase_two_strategy.py 覆盖4日不恢复、5日恢复。"
+      ]
+    },
+    {
+      "id": "KC50-GRADED-RISK",
+      "status": "pass",
+      "match": {
+        "sectionIncludes": [
+          "分级风控"
+        ]
+      },
+      "evidence": [
+        "src/etf_tracker/strategy.py 按买入笔数区分2笔暂停、3笔第4笔复核、4笔完整风控减仓。",
+        "tests/test_phase_two_strategy.py 覆盖2笔、3笔和4笔阶段。"
+      ]
+    },
+    {
+      "id": "KC50-TIME-REVIEW",
+      "status": "pass",
+      "match": {
+        "sectionIncludes": [
+          "时间复核"
+        ]
+      },
+      "evidence": [
+        "src/etf_tracker/strategy.py 按行情交易日计算科创50持仓天数并输出60/120日复核。",
+        "tests/test_phase_two_strategy.py 覆盖60日复核提醒。"
+      ]
+    },
+    {
+      "id": "KC50-RESERVE-RECOVERY",
+      "status": "pass",
+      "match": {
+        "sectionIncludes": [
+          "科创50备用金回暖规则"
+        ]
+      },
+      "evidence": [
+        "src/etf_tracker/strategy.py 从 H3 清仓记录、H3恢复状态、备用金安全垫和 reserve.kc50_recovery 人工确认推导科创50备用金回暖候选。",
+        "tests/test_phase_three_strategy.py 覆盖缺少人工确认等待复核、确认后最多1000元候选以及已使用1份时阻断。"
+      ]
+    },
+    {
+      "id": "S1-CORRELATION",
+      "status": "pass",
+      "match": {
+        "sectionIncludes": [
+          "软规则 S1"
+        ]
+      },
+      "evidence": [
+        "src/etf_tracker/strategy.py 在20日相关系数大于0.85时按计划金额限制同日新增买入合计不超过800元，优先A500。",
+        "tests/test_phase_two_strategy.py 覆盖 A500 600 元和科创50 500 元同日候选时延后科创50。"
+      ]
+    },
+    {
+      "id": "S2-VOLATILITY",
+      "status": "pass",
+      "match": {
+        "sectionIncludes": [
+          "软规则 S2"
+        ]
+      },
+      "evidence": [
+        "src/etf_tracker/strategy.py 在科创50 20日年化波动率大于50%时将移动止盈回撤阈值放宽到13%，回落后使用12%。",
+        "tests/test_phase_two_strategy.py 覆盖高波动13%和普通12%阈值。"
+      ]
+    },
+    {
+      "id": "STRATEGY-INVALIDATION",
+      "status": "pass",
+      "match": {
+        "sectionIncludes": [
+          "策略失效规则"
+        ]
+      },
+      "evidence": [
+        "src/etf_tracker/strategy.py 覆盖科创50连续2轮H3后30日暂停、A500网格90日无有效买卖、总账户最大回撤超过12%阻断和6个月基准收益对比复核。",
+        "tests/test_phase_three_strategy.py 覆盖最大回撤阻断、H3轮次、A500网格空转和沪深300/货币基金对比展示。"
+      ]
+    },
+    {
+      "id": "RESTART-AFTER-LIQUIDATION",
+      "status": "pass",
+      "match": {
+        "sectionIncludes": [
+          "清仓后重启"
+        ]
+      },
+      "evidence": [
+        "src/etf_tracker/strategy.py 清仓满5个交易日后只生成不超过正常首笔50%的重启试探仓复核候选，并输出重锁参数。",
+        "tests/test_phase_three_strategy.py 覆盖重启试探仓金额上限和超过50%的事实成交违规提示。"
+      ]
+    },
+    {
+      "id": "PROFIT-LOCK",
+      "status": "pass",
+      "match": {
+        "sectionIncludes": [
+          "收益锁定"
+        ]
+      },
+      "evidence": [
+        "src/etf_tracker/strategy.py 将 account.locked_cash 计入总账户价值但不放入交易资金池，收益达到15%时提示至少锁定收益的1/3。",
+        "tests/test_phase_three_strategy.py 覆盖不可交易现金池展示、收益锁定建议金额和资金池隔离。"
+      ]
+    },
+    {
+      "id": "TRADE-RECORD-BASIC",
+      "status": "pass",
+      "match": {
+        "sectionIncludes": [
+          "执行记录表"
+        ],
+        "textAny": [
+          "标的",
+          "策略模块",
+          "执行价格",
+          "执行金额",
+          "执行份额",
+          "交易成本",
+          "复盘备注"
+        ]
+      },
+      "evidence": [
+        "Worker、页面和 Trade 模型支持 symbol、module、price、amount、shares、fee、note。",
+        "tests/worker.test.mjs 覆盖新增、修改、删除和字段保存。"
+      ]
+    },
+    {
+      "id": "TRADE-RECORD-MISSING",
+      "status": "pass",
+      "match": {
+        "sectionIncludes": [
+          "执行记录表"
+        ],
+        "textAny": [
+          "信号确认日",
+          "实际执行日",
+          "触发规则",
+          "现金余额",
+          "是否触发风险闸门"
+        ]
+      },
+      "evidence": [
+        "Trade 模型、Python解析器、Worker normalization 和 docs/index.html 已支持 signal_date、execution_date、trigger_rule、cash_balance、risk_gate_triggered、risk_gate_snapshot。",
+        "tests/test_trades.py 与 tests/worker.test.mjs 覆盖新字段和旧 date 兼容。"
+      ]
+    },
+    {
+      "id": "VALUATION-SOURCE",
+      "status": "manual",
+      "match": {
+        "textAny": [
+          "估值数据源",
+          "估值平台",
+          "截图或数据存档方式",
+          "数据源不可用"
+        ]
+      },
+      "evidence": [
+        "src/etf_tracker/valuation.py 当前只输出估值分位自动源未锁定提示。",
+        "估值来源和截图需交付前人工锁定。"
+      ]
+    },
+    {
+      "id": "SECURITY-NO-AUTO-TRADE",
+      "status": "pass",
+      "match": {
+        "textAny": [
+          "不构成投资建议",
+          "不连接券商",
+          "不会自动下单",
+          "不会自动交易"
+        ]
+      },
+      "evidence": [
+        "README.md 和 src/etf_tracker/report.py 明确说明只做记录、复盘和提醒。",
+        "项目中没有券商接口或下单 API。"
+      ]
+    },
+    {
+      "id": "PHASE4-001-PROFIT-LOCK",
+      "status": "pass",
+      "match": {
+        "sectionIncludes": [
+          "一、核心定义"
+        ],
+        "textIncludes": [
+          "总账户最大回撤 | （账户历史最高净值 - 当前净值）÷ 账户历史最高净值。账户净值 = 全部ETF持仓市值 + 全部资金池现金余额，含不可交易现金池。"
+        ]
+      },
+      "evidence": [
+        "src/etf_tracker/strategy.py 将 locked_cash 计入账户价值但排除在交易资金池外，并在累计收益达15%时提示收益锁定。",
+        "tests/test_phase_three_strategy.py 覆盖不可交易现金池展示、收益锁定建议金额和资金池隔离。"
+      ]
+    },
+    {
+      "id": "PHASE4-002-MANUAL-REVIEW-BOUNDARY",
+      "status": "manual",
+      "match": {
+        "sectionIncludes": [
+          "一、核心定义"
+        ],
+        "textIncludes": [
+          "网格下沿 | 每季度复核确定的 A500 估值低位价格。跌破后暂停普通网格补仓。"
+        ]
+      },
+      "evidence": [
+        "季度复核、估值平台选择、截图存档、策略有效性最终判断和跨池例外属于人工复核边界，系统只展示证据和提醒。"
+      ]
+    },
+    {
+      "id": "PHASE4-003-MANUAL-REVIEW-BOUNDARY",
+      "status": "manual",
+      "match": {
+        "sectionIncludes": [
+          "一、核心定义"
+        ],
+        "textIncludes": [
+          "网格上沿 | 每季度复核确定的 A500 估值高位价格。未填入具体价格前，不设置底仓清仓条件单。"
+        ]
+      },
+      "evidence": [
+        "季度复核、估值平台选择、截图存档、策略有效性最终判断和跨池例外属于人工复核边界，系统只展示证据和提醒。"
+      ]
+    },
+    {
+      "id": "PHASE4-004-KC50-BUY-STEPS",
+      "status": "pass",
+      "match": {
+        "sectionIncludes": [
+          "一、核心定义"
+        ],
+        "textIncludes": [
+          "本轮科创50波段 | 从第一笔买入信号触发日起，至全部科创50仓位清零（含止盈清完、止损清仓或风控减仓清完）之日止。"
+        ]
+      },
+      "evidence": [
+        "src/etf_tracker/strategy.py 使用近252日高点回撤、已买金额、估值和第4笔过滤条件推导科创50四笔买入候选。",
+        "tests/test_strategy.py 与 tests/test_phase_two_strategy.py 覆盖第一笔触发、第二/第三笔、估值延后、第4笔过滤和买入阶段推进。"
+      ]
+    },
+    {
+      "id": "PHASE4-005-KC50-BUY-STEPS",
+      "status": "pass",
+      "match": {
+        "sectionIncludes": [
+          "一、核心定义"
+        ],
+        "textIncludes": [
+          "科创50综合持仓成本 | 本轮科创50实际已成交买入总金额 ÷ 当前持有总份额。止盈触发所用成本，以首次止盈前的综合持仓成本为准，后续不因部分卖出而变化。"
+        ]
+      },
+      "evidence": [
+        "src/etf_tracker/strategy.py 使用近252日高点回撤、已买金额、估值和第4笔过滤条件推导科创50四笔买入候选。",
+        "tests/test_strategy.py 与 tests/test_phase_two_strategy.py 覆盖第一笔触发、第二/第三笔、估值延后、第4笔过滤和买入阶段推进。"
+      ]
+    },
+    {
+      "id": "PHASE4-006-FUNDS-POOLS",
+      "status": "pass",
+      "match": {
+        "sectionIncludes": [
+          "一、核心定义"
+        ],
+        "textIncludes": [
+          "科创50波段现金余额 | 科创50波段池初始金额2000元，减去已成交买入金额，加上已成交卖出回收金额。不含全局备用金。"
+        ]
+      },
+      "evidence": [
+        "src/etf_tracker/portfolio.py 按 a500_grid、kc50_wave、reserve 分池计算现金余额和卖出回池。",
+        "tests/test_accounting.py 覆盖资金池初始余额、卖出回池和备用金独立归属。"
+      ]
+    },
+    {
+      "id": "PHASE4-007-FUNDS-POOLS",
+      "status": "pass",
+      "match": {
+        "sectionIncludes": [
+          "一、核心定义"
+        ],
+        "textIncludes": [
+          "科创50波段账户净值 | 科创50持仓市值 + 科创50波段现金余额，不包含全局备用金。"
+        ]
+      },
+      "evidence": [
+        "src/etf_tracker/portfolio.py 按 a500_grid、kc50_wave、reserve 分池计算现金余额和卖出回池。",
+        "tests/test_accounting.py 覆盖资金池初始余额、卖出回池和备用金独立归属。"
+      ]
+    },
+    {
+      "id": "PHASE4-008-INDICATORS",
+      "status": "pass",
+      "match": {
+        "sectionIncludes": [
+          "一、核心定义"
+        ],
+        "textIncludes": [
+          "20日均线下行 | 当日20日均线值低于前一交易日20日均线值。"
+        ]
+      },
+      "evidence": [
+        "src/etf_tracker/indicators.py 实现 20日均线、20日新低、相关系数和年化波动率等日线指标。",
+        "tests/test_indicators.py 覆盖 20日新低、相关系数和年化波动率；策略测试覆盖均线趋势判定。"
+      ]
+    },
+    {
+      "id": "PHASE4-009-INDICATORS",
+      "status": "pass",
+      "match": {
+        "sectionIncludes": [
+          "一、核心定义"
+        ],
+        "textIncludes": [
+          "20日均线拐头向上 | 当日20日均线值高于前一交易日20日均线值。"
+        ]
+      },
+      "evidence": [
+        "src/etf_tracker/indicators.py 实现 20日均线、20日新低、相关系数和年化波动率等日线指标。",
+        "tests/test_indicators.py 覆盖 20日新低、相关系数和年化波动率；策略测试覆盖均线趋势判定。"
+      ]
+    },
+    {
+      "id": "PHASE4-010-LIFECYCLE-LONG-TERM-RISK",
+      "status": "pass",
+      "match": {
+        "sectionIncludes": [
+          "一、核心定义"
+        ],
+        "textIncludes": [
+          "单标的连续3笔浮亏 | 单标的连续3笔新增买入，每笔在买入后的第10个交易日收盘时仍为浮亏，且复核当日3笔全部仍为浮亏。"
+        ]
+      },
+      "evidence": [
+        "src/etf_tracker/strategy.py 从成交记录和行情推导 H6 清仓冷却、重启试探仓、H7 连续3笔10日浮亏和长期失效状态。",
+        "tests/test_phase_three_strategy.py 覆盖 H6 第4/第5交易日、重锁指标、试探仓上限、H7、最大回撤、H3轮次和 A500 网格90日空转。"
+      ]
+    },
+    {
+      "id": "PHASE4-011-A500-GRID-ARCHIVE",
+      "status": "pass",
+      "match": {
+        "sectionIncludes": [
+          "二、资金分层"
+        ],
+        "textIncludes": [
+          "A500常规网格池 | 5000 元 | 仅用于 A500 底仓、常规网格和A500池内机动安排。"
+        ]
+      },
+      "evidence": [
+        "src/etf_tracker/strategy.py 输出 A500 实际/建议网格基准、上下沿、间距、开放网格和跌破下沿暂停。",
+        "tests/test_strategy.py 与 tests/test_phase_two_strategy.py 覆盖 A500 基准、5.5% 间距、普通补仓、配对卖出、下沿暂停和上沿提醒。"
+      ]
+    },
+    {
+      "id": "PHASE4-012-FUNDS-POOLS",
+      "status": "pass",
+      "match": {
+        "sectionIncludes": [
+          "二、资金分层"
+        ],
+        "textIncludes": [
+          "科创50波段池 | 2000 元 | 仅用于科创50分批买入、止盈、止损和风控。"
+        ]
+      },
+      "evidence": [
+        "src/etf_tracker/portfolio.py 按 a500_grid、kc50_wave、reserve 分池计算现金余额和卖出回池。",
+        "tests/test_accounting.py 覆盖资金池初始余额、卖出回池和备用金独立归属。"
+      ]
+    },
+    {
+      "id": "PHASE4-013-FUNDS-POOLS",
+      "status": "pass",
+      "match": {
+        "sectionIncludes": [
+          "二、资金分层"
+        ],
+        "textIncludes": [
+          "全局备用金 | 3000 元 | 分为3份，每份1000元。只在极端条件和人工复核后使用，不参与自动交易。"
+        ]
+      },
+      "evidence": [
+        "src/etf_tracker/portfolio.py 按 a500_grid、kc50_wave、reserve 分池计算现金余额和卖出回池。",
+        "tests/test_accounting.py 覆盖资金池初始余额、卖出回池和备用金独立归属。"
+      ]
+    },
+    {
+      "id": "PHASE4-014-FUNDS-POOLS",
+      "status": "pass",
+      "match": {
+        "sectionIncludes": [
+          "二、资金分层"
+        ],
+        "textIncludes": [
+          "执行原则："
+        ]
+      },
+      "evidence": [
+        "src/etf_tracker/portfolio.py 按 a500_grid、kc50_wave、reserve 分池计算现金余额和卖出回池。",
+        "tests/test_accounting.py 覆盖资金池初始余额、卖出回池和备用金独立归属。"
+      ]
+    },
+    {
+      "id": "PHASE4-015-FUNDS-POOLS",
+      "status": "pass",
+      "match": {
+        "sectionIncludes": [
+          "二、资金分层"
+        ],
+        "textIncludes": [
+          "全局备用金不自动补仓，备用金仓位单独记录、单独止盈、单独复核，不混入普通网格。"
+        ]
+      },
+      "evidence": [
+        "src/etf_tracker/portfolio.py 按 a500_grid、kc50_wave、reserve 分池计算现金余额和卖出回池。",
+        "tests/test_accounting.py 覆盖资金池初始余额、卖出回池和备用金独立归属。"
+      ]
+    },
+    {
+      "id": "PHASE4-016-TRADE-RECORD-MISSING",
+      "status": "pass",
+      "match": {
+        "sectionIncludes": [
+          "三、第一层：硬规则"
+        ],
+        "textIncludes": [
+          "硬规则必须机械执行，不允许临场例外。"
+        ]
+      },
+      "evidence": [
+        "Trade 模型、Python 解析器、Worker normalization 和 docs/index.html 已支持 signal_date、execution_date、trigger_rule、cash_balance、risk_gate_triggered、risk_gate_snapshot。",
+        "tests/test_trades.py、tests/worker.test.mjs 和 tests/test_report.py 覆盖新旧成交字段兼容、保存、展示和合规警告。"
+      ]
+    },
+    {
+      "id": "PHASE4-017-H1-RISK-GATE",
+      "status": "pass",
+      "match": {
+        "sectionIncludes": [
+          "四、总风险闸门"
+        ],
+        "textIncludes": [
+          "当总投入成本达到7000元后，任何新增买入必须通过总风险闸门。"
+        ]
+      },
+      "evidence": [
+        "src/etf_tracker/strategy.py 在 70%-85% 投入区间计算 H1 两项硬条件、三项参考条件和新增买入允许结论。",
+        "tests/test_strategy.py 覆盖 H1 全通过、参考条件不足、双标的同时弱势、估值缺失和 85% 绝对上限。"
+      ]
+    },
+    {
+      "id": "PHASE4-018-H1-RISK-GATE",
+      "status": "pass",
+      "match": {
+        "sectionIncludes": [
+          "四、总风险闸门"
+        ],
+        "textIncludes": [
+          "### 4.1 通过标准"
+        ]
+      },
+      "evidence": [
+        "src/etf_tracker/strategy.py 在 70%-85% 投入区间计算 H1 两项硬条件、三项参考条件和新增买入允许结论。",
+        "tests/test_strategy.py 覆盖 H1 全通过、参考条件不足、双标的同时弱势、估值缺失和 85% 绝对上限。"
+      ]
+    },
+    {
+      "id": "PHASE4-019-H1-RISK-GATE",
+      "status": "pass",
+      "match": {
+        "sectionIncludes": [
+          "四、总风险闸门"
+        ],
+        "textIncludes": [
+          "硬条件2 | 双标的趋势 | A500和科创50中，至少有一个不处于弱势状态。"
+        ]
+      },
+      "evidence": [
+        "src/etf_tracker/strategy.py 在 70%-85% 投入区间计算 H1 两项硬条件、三项参考条件和新增买入允许结论。",
+        "tests/test_strategy.py 覆盖 H1 全通过、参考条件不足、双标的同时弱势、估值缺失和 85% 绝对上限。"
+      ]
+    },
+    {
+      "id": "PHASE4-020-H1-RISK-GATE",
+      "status": "pass",
+      "match": {
+        "sectionIncludes": [
+          "四、总风险闸门"
+        ],
+        "textIncludes": [
+          "参考条件A | A500估值分位 | 处于近3年合理或偏低区间。"
+        ]
+      },
+      "evidence": [
+        "src/etf_tracker/strategy.py 在 70%-85% 投入区间计算 H1 两项硬条件、三项参考条件和新增买入允许结论。",
+        "tests/test_strategy.py 覆盖 H1 全通过、参考条件不足、双标的同时弱势、估值缺失和 85% 绝对上限。"
+      ]
+    },
+    {
+      "id": "PHASE4-021-H1-RISK-GATE",
+      "status": "pass",
+      "match": {
+        "sectionIncludes": [
+          "四、总风险闸门"
+        ],
+        "textIncludes": [
+          "参考条件B | 科创50估值分位 | 处于近3年合理或偏低区间。"
+        ]
+      },
+      "evidence": [
+        "src/etf_tracker/strategy.py 在 70%-85% 投入区间计算 H1 两项硬条件、三项参考条件和新增买入允许结论。",
+        "tests/test_strategy.py 覆盖 H1 全通过、参考条件不足、双标的同时弱势、估值缺失和 85% 绝对上限。"
+      ]
+    },
+    {
+      "id": "PHASE4-022-H1-RISK-GATE",
+      "status": "pass",
+      "match": {
+        "sectionIncludes": [
+          "四、总风险闸门"
+        ],
+        "textIncludes": [
+          "参考条件C | 冷却期 | 距离最近一次止损或止盈操作不少于10个交易日。"
+        ]
+      },
+      "evidence": [
+        "src/etf_tracker/strategy.py 在 70%-85% 投入区间计算 H1 两项硬条件、三项参考条件和新增买入允许结论。",
+        "tests/test_strategy.py 覆盖 H1 全通过、参考条件不足、双标的同时弱势、估值缺失和 85% 绝对上限。"
+      ]
+    },
+    {
+      "id": "PHASE4-023-H1-RISK-GATE",
+      "status": "pass",
+      "match": {
+        "sectionIncludes": [
+          "四、总风险闸门"
+        ],
+        "textIncludes": [
+          "### 4.2 双标的趋势判定"
+        ]
+      },
+      "evidence": [
+        "src/etf_tracker/strategy.py 在 70%-85% 投入区间计算 H1 两项硬条件、三项参考条件和新增买入允许结论。",
+        "tests/test_strategy.py 覆盖 H1 全通过、参考条件不足、双标的同时弱势、估值缺失和 85% 绝对上限。"
+      ]
+    },
+    {
+      "id": "PHASE4-024-H1-RISK-GATE",
+      "status": "pass",
+      "match": {
+        "sectionIncludes": [
+          "四、总风险闸门"
+        ],
+        "textIncludes": [
+          "硬条件2通过定义："
+        ]
+      },
+      "evidence": [
+        "src/etf_tracker/strategy.py 在 70%-85% 投入区间计算 H1 两项硬条件、三项参考条件和新增买入允许结论。",
+        "tests/test_strategy.py 覆盖 H1 全通过、参考条件不足、双标的同时弱势、估值缺失和 85% 绝对上限。"
+      ]
+    },
+    {
+      "id": "PHASE4-025-H1-RISK-GATE",
+      "status": "pass",
+      "match": {
+        "sectionIncludes": [
+          "四、总风险闸门"
+        ],
+        "textIncludes": [
+          "A500和科创50中，至少有一个满足以下任一项："
+        ]
+      },
+      "evidence": [
+        "src/etf_tracker/strategy.py 在 70%-85% 投入区间计算 H1 两项硬条件、三项参考条件和新增买入允许结论。",
+        "tests/test_strategy.py 覆盖 H1 全通过、参考条件不足、双标的同时弱势、估值缺失和 85% 绝对上限。"
+      ]
+    },
+    {
+      "id": "PHASE4-026-H1-RISK-GATE",
+      "status": "pass",
+      "match": {
+        "sectionIncludes": [
+          "四、总风险闸门"
+        ],
+        "textIncludes": [
+          "当日收盘价大于或等于20日均线值；"
+        ]
+      },
+      "evidence": [
+        "src/etf_tracker/strategy.py 在 70%-85% 投入区间计算 H1 两项硬条件、三项参考条件和新增买入允许结论。",
+        "tests/test_strategy.py 覆盖 H1 全通过、参考条件不足、双标的同时弱势、估值缺失和 85% 绝对上限。"
+      ]
+    },
+    {
+      "id": "PHASE4-027-H1-RISK-GATE",
+      "status": "pass",
+      "match": {
+        "sectionIncludes": [
+          "四、总风险闸门"
+        ],
+        "textIncludes": [
+          "当日20日均线值大于或等于前一交易日20日均线值。"
+        ]
+      },
+      "evidence": [
+        "src/etf_tracker/strategy.py 在 70%-85% 投入区间计算 H1 两项硬条件、三项参考条件和新增买入允许结论。",
+        "tests/test_strategy.py 覆盖 H1 全通过、参考条件不足、双标的同时弱势、估值缺失和 85% 绝对上限。"
+      ]
+    },
+    {
+      "id": "PHASE4-028-H1-RISK-GATE",
+      "status": "pass",
+      "match": {
+        "sectionIncludes": [
+          "四、总风险闸门"
+        ],
+        "textIncludes": [
+          "换言之，只有当A500和科创50同时处于“收盘价低于20日均线，且20日均线继续下行”状态时，硬条件2不通过。"
+        ]
+      },
+      "evidence": [
+        "src/etf_tracker/strategy.py 在 70%-85% 投入区间计算 H1 两项硬条件、三项参考条件和新增买入允许结论。",
+        "tests/test_strategy.py 覆盖 H1 全通过、参考条件不足、双标的同时弱势、估值缺失和 85% 绝对上限。"
+      ]
+    },
+    {
+      "id": "PHASE4-029-H1-RISK-GATE",
+      "status": "pass",
+      "match": {
+        "sectionIncludes": [
+          "四、总风险闸门"
+        ],
+        "textIncludes": [
+          "双标的趋势 | □ 同时弱势 □ 非同时弱势 | □ 是 □ 否"
+        ]
+      },
+      "evidence": [
+        "src/etf_tracker/strategy.py 在 70%-85% 投入区间计算 H1 两项硬条件、三项参考条件和新增买入允许结论。",
+        "tests/test_strategy.py 覆盖 H1 全通过、参考条件不足、双标的同时弱势、估值缺失和 85% 绝对上限。"
+      ]
+    },
+    {
+      "id": "PHASE4-030-H1-RISK-GATE",
+      "status": "pass",
+      "match": {
+        "sectionIncludes": [
+          "四、总风险闸门"
+        ],
+        "textIncludes": [
+          "A500估值分位 | ___% | □ 是 □ 否"
+        ]
+      },
+      "evidence": [
+        "src/etf_tracker/strategy.py 在 70%-85% 投入区间计算 H1 两项硬条件、三项参考条件和新增买入允许结论。",
+        "tests/test_strategy.py 覆盖 H1 全通过、参考条件不足、双标的同时弱势、估值缺失和 85% 绝对上限。"
+      ]
+    },
+    {
+      "id": "PHASE4-031-H1-RISK-GATE",
+      "status": "pass",
+      "match": {
+        "sectionIncludes": [
+          "四、总风险闸门"
+        ],
+        "textIncludes": [
+          "科创50估值分位 | ___% | □ 是 □ 否"
+        ]
+      },
+      "evidence": [
+        "src/etf_tracker/strategy.py 在 70%-85% 投入区间计算 H1 两项硬条件、三项参考条件和新增买入允许结论。",
+        "tests/test_strategy.py 覆盖 H1 全通过、参考条件不足、双标的同时弱势、估值缺失和 85% 绝对上限。"
+      ]
+    },
+    {
+      "id": "PHASE4-032-H1-RISK-GATE",
+      "status": "pass",
+      "match": {
+        "sectionIncludes": [
+          "四、总风险闸门"
+        ],
+        "textIncludes": [
+          "距最近一次止损或止盈 | ___个交易日 | □ 是 □ 否"
+        ]
+      },
+      "evidence": [
+        "src/etf_tracker/strategy.py 在 70%-85% 投入区间计算 H1 两项硬条件、三项参考条件和新增买入允许结论。",
+        "tests/test_strategy.py 覆盖 H1 全通过、参考条件不足、双标的同时弱势、估值缺失和 85% 绝对上限。"
+      ]
+    },
+    {
+      "id": "PHASE4-033-TRADE-RECORD-MISSING",
+      "status": "pass",
+      "match": {
+        "sectionIncludes": [
+          "五、第二层：标准流程"
+        ],
+        "textIncludes": [
+          "标准流程为日常执行主体。正常情况下按规则执行；如因极端行情调整，必须记录原因。"
+        ]
+      },
+      "evidence": [
+        "Trade 模型、Python 解析器、Worker normalization 和 docs/index.html 已支持 signal_date、execution_date、trigger_rule、cash_balance、risk_gate_triggered、risk_gate_snapshot。",
+        "tests/test_trades.py、tests/worker.test.mjs 和 tests/test_report.py 覆盖新旧成交字段兼容、保存、展示和合规警告。"
+      ]
+    },
+    {
+      "id": "PHASE4-034-A500-GRID-ARCHIVE",
+      "status": "pass",
+      "match": {
+        "sectionIncludes": [
+          "六、A500策略模块"
+        ],
+        "textIncludes": [
+          "### 6.1 A500常规网格"
+        ]
+      },
+      "evidence": [
+        "src/etf_tracker/strategy.py 输出 A500 实际/建议网格基准、上下沿、间距、开放网格和跌破下沿暂停。",
+        "tests/test_strategy.py 与 tests/test_phase_two_strategy.py 覆盖 A500 基准、5.5% 间距、普通补仓、配对卖出、下沿暂停和上沿提醒。"
+      ]
+    },
+    {
+      "id": "PHASE4-035-A500-GRID-ARCHIVE",
+      "status": "pass",
+      "match": {
+        "sectionIncludes": [
+          "六、A500策略模块"
+        ],
+        "textIncludes": [
+          "A500常规网格池 | 5000 元"
+        ]
+      },
+      "evidence": [
+        "src/etf_tracker/strategy.py 输出 A500 实际/建议网格基准、上下沿、间距、开放网格和跌破下沿暂停。",
+        "tests/test_strategy.py 与 tests/test_phase_two_strategy.py 覆盖 A500 基准、5.5% 间距、普通补仓、配对卖出、下沿暂停和上沿提醒。"
+      ]
+    },
+    {
+      "id": "PHASE4-036-A500-GRID-ARCHIVE",
+      "status": "pass",
+      "match": {
+        "sectionIncludes": [
+          "六、A500策略模块"
+        ],
+        "textIncludes": [
+          "单格补仓金额 | 600 元"
+        ]
+      },
+      "evidence": [
+        "src/etf_tracker/strategy.py 输出 A500 实际/建议网格基准、上下沿、间距、开放网格和跌破下沿暂停。",
+        "tests/test_strategy.py 与 tests/test_phase_two_strategy.py 覆盖 A500 基准、5.5% 间距、普通补仓、配对卖出、下沿暂停和上沿提醒。"
+      ]
+    },
+    {
+      "id": "PHASE4-037-A500-GRID-ARCHIVE",
+      "status": "pass",
+      "match": {
+        "sectionIncludes": [
+          "六、A500策略模块"
+        ],
+        "textIncludes": [
+          "最多普通补仓格数 | 5 格"
+        ]
+      },
+      "evidence": [
+        "src/etf_tracker/strategy.py 输出 A500 实际/建议网格基准、上下沿、间距、开放网格和跌破下沿暂停。",
+        "tests/test_strategy.py 与 tests/test_phase_two_strategy.py 覆盖 A500 基准、5.5% 间距、普通补仓、配对卖出、下沿暂停和上沿提醒。"
+      ]
+    },
+    {
+      "id": "PHASE4-038-MANUAL-REVIEW-BOUNDARY",
+      "status": "manual",
+      "match": {
+        "sectionIncludes": [
+          "六、A500策略模块"
+        ],
+        "textIncludes": [
+          "机动资金 | 1000 元，用于份额误差、滑点处理和季度复核后调整"
+        ]
+      },
+      "evidence": [
+        "季度复核、估值平台选择、截图存档、策略有效性最终判断和跨池例外属于人工复核边界，系统只展示证据和提醒。"
+      ]
+    },
+    {
+      "id": "PHASE4-039-MANUAL-REVIEW-BOUNDARY",
+      "status": "manual",
+      "match": {
+        "sectionIncludes": [
+          "六、A500策略模块"
+        ],
+        "textIncludes": [
+          "机动资金边界："
+        ]
+      },
+      "evidence": [
+        "季度复核、估值平台选择、截图存档、策略有效性最终判断和跨池例外属于人工复核边界，系统只展示证据和提醒。"
+      ]
+    },
+    {
+      "id": "PHASE4-040-MANUAL-BROKER-EXECUTION",
+      "status": "manual",
+      "match": {
+        "sectionIncludes": [
+          "六、A500策略模块"
+        ],
+        "textIncludes": [
+          "可用于 | 弥合ETF最小交易单位造成的金额偏差；处理条件单滑点；季度复核后调整网格间距或格数，并记录理由。"
+        ]
+      },
+      "evidence": [
+        "本项目不连接券商；开盘时点、条件单、限价委托、滑点和流动性异常处理必须由用户人工执行并在成交备注中记录。"
+      ]
+    },
+    {
+      "id": "PHASE4-041-A500-GRID-ARCHIVE",
+      "status": "pass",
+      "match": {
+        "sectionIncludes": [
+          "六、A500策略模块"
+        ],
+        "textIncludes": [
+          "不可用于 | 绕过硬规则追加买入；在跌破网格下沿后继续普通补仓；跨池调拨至科创50或全局备用金；未经复核加大单格买入金额。"
+        ]
+      },
+      "evidence": [
+        "src/etf_tracker/strategy.py 输出 A500 实际/建议网格基准、上下沿、间距、开放网格和跌破下沿暂停。",
+        "tests/test_strategy.py 与 tests/test_phase_two_strategy.py 覆盖 A500 基准、5.5% 间距、普通补仓、配对卖出、下沿暂停和上沿提醒。"
+      ]
+    },
+    {
+      "id": "PHASE4-042-SECTION-HEADING-EVIDENCE",
+      "status": "pass",
+      "match": {
+        "sectionIncludes": [
+          "六、A500策略模块"
+        ],
+        "textIncludes": [
+          "执行规则："
+        ]
+      },
+      "evidence": [
+        "src/etf_tracker/strategy.py 的 A500 网格流程按底仓、普通补仓、配对卖出和下沿暂停机械执行。",
+        "tests/test_phase_two_strategy.py 覆盖 A500 执行规则主路径和阻断路径。"
+      ]
+    },
+    {
+      "id": "PHASE4-043-A500-GRID-ARCHIVE",
+      "status": "pass",
+      "match": {
+        "sectionIncludes": [
+          "六、A500策略模块"
+        ],
+        "textIncludes": [
+          "初始底仓不参与普通网格卖出，只执行底仓趋势止盈规则。"
+        ]
+      },
+      "evidence": [
+        "src/etf_tracker/strategy.py 输出 A500 实际/建议网格基准、上下沿、间距、开放网格和跌破下沿暂停。",
+        "tests/test_strategy.py 与 tests/test_phase_two_strategy.py 覆盖 A500 基准、5.5% 间距、普通补仓、配对卖出、下沿暂停和上沿提醒。"
+      ]
+    },
+    {
+      "id": "PHASE4-044-A500-GRID-ARCHIVE",
+      "status": "pass",
+      "match": {
+        "sectionIncludes": [
+          "六、A500策略模块"
+        ],
+        "textIncludes": [
+          "跌破网格下沿后，普通网格补仓暂停。"
+        ]
+      },
+      "evidence": [
+        "src/etf_tracker/strategy.py 输出 A500 实际/建议网格基准、上下沿、间距、开放网格和跌破下沿暂停。",
+        "tests/test_strategy.py 与 tests/test_phase_two_strategy.py 覆盖 A500 基准、5.5% 间距、普通补仓、配对卖出、下沿暂停和上沿提醒。"
+      ]
+    },
+    {
+      "id": "PHASE4-045-A500-BASE-PROFIT-ARCHIVE",
+      "status": "pass",
+      "match": {
+        "sectionIncludes": [
+          "六、A500策略模块"
+        ],
+        "textIncludes": [
+          "### 6.2 A500底仓趋势止盈"
+        ]
+      },
+      "evidence": [
+        "src/etf_tracker/strategy.py 独立追踪 A500 底仓第一次止盈、阶段高点和 8% 回撤。",
+        "tests/test_phase_two_strategy.py 覆盖 15% 底仓止盈、已止盈不重复、阶段高点更新和剩余底仓回撤止盈。"
+      ]
+    },
+    {
+      "id": "PHASE4-046-A500-BASE-PROFIT-ARCHIVE",
+      "status": "pass",
+      "match": {
+        "sectionIncludes": [
+          "六、A500策略模块"
+        ],
+        "textIncludes": [
+          "底仓趋势止盈独立于常规网格记录。"
+        ]
+      },
+      "evidence": [
+        "src/etf_tracker/strategy.py 独立追踪 A500 底仓第一次止盈、阶段高点和 8% 回撤。",
+        "tests/test_phase_two_strategy.py 覆盖 15% 底仓止盈、已止盈不重复、阶段高点更新和剩余底仓回撤止盈。"
+      ]
+    },
+    {
+      "id": "PHASE4-047-A500-BASE-PROFIT-ARCHIVE",
+      "status": "pass",
+      "match": {
+        "sectionIncludes": [
+          "六、A500策略模块"
+        ],
+        "textIncludes": [
+          "底仓趋势止盈条件满足时，直接执行卖出动作，不因单边上涨复核而延迟。单边上涨复核仅用于判断是否进一步清空底仓或调整后续底仓规则。"
+        ]
+      },
+      "evidence": [
+        "src/etf_tracker/strategy.py 独立追踪 A500 底仓第一次止盈、阶段高点和 8% 回撤。",
+        "tests/test_phase_two_strategy.py 覆盖 15% 底仓止盈、已止盈不重复、阶段高点更新和剩余底仓回撤止盈。"
+      ]
+    },
+    {
+      "id": "PHASE4-048-SECTION-HEADING-EVIDENCE",
+      "status": "pass",
+      "match": {
+        "sectionIncludes": [
+          "六、A500策略模块"
+        ],
+        "textIncludes": [
+          "### 6.3 A500单边保护"
+        ]
+      },
+      "evidence": [
+        "src/etf_tracker/strategy.py 实现 A500 单边下跌暂停、恢复条件辅助判断和上沿提醒。",
+        "tests/test_phase_two_strategy.py 与 tests/test_strategy.py 覆盖连续3格开放补仓阻断和连续10日高于上沿提醒。"
+      ]
+    },
+    {
+      "id": "PHASE4-049-A500-GRID-ARCHIVE",
+      "status": "pass",
+      "match": {
+        "sectionIncludes": [
+          "七、A500备用金规则"
+        ],
+        "textIncludes": [
+          "A500备用金属于全局备用金的极端修正仓，单独记录，不混入A500常规网格。"
+        ]
+      },
+      "evidence": [
+        "src/etf_tracker/strategy.py 输出 A500 实际/建议网格基准、上下沿、间距、开放网格和跌破下沿暂停。",
+        "tests/test_strategy.py 与 tests/test_phase_two_strategy.py 覆盖 A500 基准、5.5% 间距、普通补仓、配对卖出、下沿暂停和上沿提醒。"
+      ]
+    },
+    {
+      "id": "PHASE4-050-A500-RESERVE-LIMITS",
+      "status": "pass",
+      "match": {
+        "sectionIncludes": [
+          "七、A500备用金规则"
+        ],
+        "textIncludes": [
+          "### 7.1 触发条件"
+        ]
+      },
+      "evidence": [
+        "src/etf_tracker/strategy.py 只把 A500 备用金作为人工复核候选，并检查估值、20日间隔、1000元单份和 8%/12% 边界。",
+        "tests/test_phase_two_strategy.py 覆盖 A/B/C 备用金候选、估值要求、间隔和备用金仓位边界。"
+      ]
+    },
+    {
+      "id": "PHASE4-051-A500-GRID-ARCHIVE",
+      "status": "pass",
+      "match": {
+        "sectionIncludes": [
+          "七、A500备用金规则"
+        ],
+        "textIncludes": [
+          "条件C中的10%以网格下沿价格为基准计算，不以最近一次买入价为基准。"
+        ]
+      },
+      "evidence": [
+        "src/etf_tracker/strategy.py 输出 A500 实际/建议网格基准、上下沿、间距、开放网格和跌破下沿暂停。",
+        "tests/test_strategy.py 与 tests/test_phase_two_strategy.py 覆盖 A500 基准、5.5% 间距、普通补仓、配对卖出、下沿暂停和上沿提醒。"
+      ]
+    },
+    {
+      "id": "PHASE4-052-A500-RESERVE-LIMITS",
+      "status": "pass",
+      "match": {
+        "sectionIncludes": [
+          "七、A500备用金规则"
+        ],
+        "textIncludes": [
+          "### 7.3 备用金仓位管理"
+        ]
+      },
+      "evidence": [
+        "src/etf_tracker/strategy.py 只把 A500 备用金作为人工复核候选，并检查估值、20日间隔、1000元单份和 8%/12% 边界。",
+        "tests/test_phase_two_strategy.py 覆盖 A/B/C 备用金候选、估值要求、间隔和备用金仓位边界。"
+      ]
+    },
+    {
+      "id": "PHASE4-053-A500-RESERVE-LIMITS",
+      "status": "pass",
+      "match": {
+        "sectionIncludes": [
+          "七、A500备用金规则"
+        ],
+        "textIncludes": [
+          "亏损未超过8% | 继续持有，正常跟踪。"
+        ]
+      },
+      "evidence": [
+        "src/etf_tracker/strategy.py 只把 A500 备用金作为人工复核候选，并检查估值、20日间隔、1000元单份和 8%/12% 边界。",
+        "tests/test_phase_two_strategy.py 覆盖 A/B/C 备用金候选、估值要求、间隔和备用金仓位边界。"
+      ]
+    },
+    {
+      "id": "PHASE4-054-SECTION-HEADING-EVIDENCE",
+      "status": "pass",
+      "match": {
+        "sectionIncludes": [
+          "八、科创50策略模块"
+        ],
+        "textIncludes": [
+          "### 8.1 统一触发口径"
+        ]
+      },
+      "evidence": [
+        "src/etf_tracker/strategy.py 所有科创50触发判断均基于日线收盘行情，盘中执行留给人工记录。",
+        "tests/test_strategy.py 与 tests/test_phase_two_strategy.py 使用可控日线序列覆盖科创50买卖触发。"
+      ]
+    },
+    {
+      "id": "PHASE4-055-MANUAL-BROKER-EXECUTION",
+      "status": "manual",
+      "match": {
+        "sectionIncludes": [
+          "八、科创50策略模块"
+        ],
+        "textIncludes": [
+          "确认后次日开盘后5-15分钟内执行。"
+        ]
+      },
+      "evidence": [
+        "本项目不连接券商；开盘时点、条件单、限价委托、滑点和流动性异常处理必须由用户人工执行并在成交备注中记录。"
+      ]
+    },
+    {
+      "id": "PHASE4-056-MANUAL-BROKER-EXECUTION",
+      "status": "manual",
+      "match": {
+        "sectionIncludes": [
+          "八、科创50策略模块"
+        ],
+        "textIncludes": [
+          "不因盘中临时波动提前触发科创50波段买卖。"
+        ]
+      },
+      "evidence": [
+        "本项目不连接券商；开盘时点、条件单、限价委托、滑点和流动性异常处理必须由用户人工执行并在成交备注中记录。"
+      ]
+    },
+    {
+      "id": "PHASE4-057-MANUAL-BROKER-EXECUTION",
+      "status": "manual",
+      "match": {
+        "sectionIncludes": [
+          "八、科创50策略模块"
+        ],
+        "textIncludes": [
+          "若次日出现极端跳空或流动性异常，可延后至开盘后15-30分钟重新评估，并记录原因。"
+        ]
+      },
+      "evidence": [
+        "本项目不连接券商；开盘时点、条件单、限价委托、滑点和流动性异常处理必须由用户人工执行并在成交备注中记录。"
+      ]
+    },
+    {
+      "id": "PHASE4-058-SECTION-HEADING-EVIDENCE",
+      "status": "pass",
+      "match": {
+        "sectionIncludes": [
+          "八、科创50策略模块"
+        ],
+        "textIncludes": [
+          "### 8.2 买入规则"
+        ]
+      },
+      "evidence": [
+        "src/etf_tracker/strategy.py 按近252日高点回撤、买入档位、估值和过滤条件生成科创50买入候选。",
+        "tests/test_strategy.py 与 tests/test_phase_two_strategy.py 覆盖科创50第一至第四笔买入规则。"
+      ]
+    },
+    {
+      "id": "PHASE4-059-KC50-BUY-STEPS",
+      "status": "pass",
+      "match": {
+        "sectionIncludes": [
+          "八、科创50策略模块"
+        ],
+        "textIncludes": [
+          "回撤基准：第一笔买入信号触发当日，向前回看12个月收盘价最高值。"
+        ]
+      },
+      "evidence": [
+        "src/etf_tracker/strategy.py 使用近252日高点回撤、已买金额、估值和第4笔过滤条件推导科创50四笔买入候选。",
+        "tests/test_strategy.py 与 tests/test_phase_two_strategy.py 覆盖第一笔触发、第二/第三笔、估值延后、第4笔过滤和买入阶段推进。"
+      ]
+    },
+    {
+      "id": "PHASE4-060-KC50-BUY-STEPS",
+      "status": "pass",
+      "match": {
+        "sectionIncludes": [
+          "八、科创50策略模块"
+        ],
+        "textIncludes": [
+          "第一笔实际触发后，第二、三、四笔仍按30%、38%、45%执行，不重新调整阶段高点。"
+        ]
+      },
+      "evidence": [
+        "src/etf_tracker/strategy.py 使用近252日高点回撤、已买金额、估值和第4笔过滤条件推导科创50四笔买入候选。",
+        "tests/test_strategy.py 与 tests/test_phase_two_strategy.py 覆盖第一笔触发、第二/第三笔、估值延后、第4笔过滤和买入阶段推进。"
+      ]
+    },
+    {
+      "id": "PHASE4-061-MANUAL-REVIEW-BOUNDARY",
+      "status": "manual",
+      "match": {
+        "sectionIncludes": [
+          "八、科创50策略模块"
+        ],
+        "textIncludes": [
+          "如阶段高点明显来自孤立极端冲高，可在专项复核中同时记录12个月收盘价90分位数作为参考，但不自动替代阶段高点。"
+        ]
+      },
+      "evidence": [
+        "季度复核、估值平台选择、截图存档、策略有效性最终判断和跨池例外属于人工复核边界，系统只展示证据和提醒。"
+      ]
+    },
+    {
+      "id": "PHASE4-062-SECTION-HEADING-EVIDENCE",
+      "status": "pass",
+      "match": {
+        "sectionIncludes": [
+          "八、科创50策略模块"
+        ],
+        "textIncludes": [
+          "执行细节："
+        ]
+      },
+      "evidence": [
+        "src/etf_tracker/strategy.py 在买满前只启用阶段性监控，完整趋势减仓在买满4笔后才触发。",
+        "tests/test_phase_two_strategy.py 覆盖2笔、3笔、4笔不同风控阶段。"
+      ]
+    },
+    {
+      "id": "PHASE4-063-KC50-BUY-STEPS",
+      "status": "pass",
+      "match": {
+        "sectionIncludes": [
+          "八、科创50策略模块"
+        ],
+        "textIncludes": [
+          "买满前不因单笔亏损止损。"
+        ]
+      },
+      "evidence": [
+        "src/etf_tracker/strategy.py 使用近252日高点回撤、已买金额、估值和第4笔过滤条件推导科创50四笔买入候选。",
+        "tests/test_strategy.py 与 tests/test_phase_two_strategy.py 覆盖第一笔触发、第二/第三笔、估值延后、第4笔过滤和买入阶段推进。"
+      ]
+    },
+    {
+      "id": "PHASE4-064-KC50-BUY-STEPS",
+      "status": "pass",
+      "match": {
+        "sectionIncludes": [
+          "八、科创50策略模块"
+        ],
+        "textIncludes": [
+          "买满前不启动完整趋势减仓，但第2笔后启动简化风控监控。"
+        ]
+      },
+      "evidence": [
+        "src/etf_tracker/strategy.py 使用近252日高点回撤、已买金额、估值和第4笔过滤条件推导科创50四笔买入候选。",
+        "tests/test_strategy.py 与 tests/test_phase_two_strategy.py 覆盖第一笔触发、第二/第三笔、估值延后、第4笔过滤和买入阶段推进。"
+      ]
+    },
+    {
+      "id": "PHASE4-065-SECTION-HEADING-EVIDENCE",
+      "status": "pass",
+      "match": {
+        "sectionIncludes": [
+          "八、科创50策略模块"
+        ],
+        "textIncludes": [
+          "执行条件："
+        ]
+      },
+      "evidence": [
+        "src/etf_tracker/strategy.py 的第4笔过滤条件同时检查5日不创新低、站上5日均线和 PE/PB 估值。",
+        "tests/test_phase_two_strategy.py 覆盖第4笔过滤条件通过后的候选。"
+      ]
+    },
+    {
+      "id": "PHASE4-066-KC50-BUY-STEPS",
+      "status": "pass",
+      "match": {
+        "sectionIncludes": [
+          "八、科创50策略模块"
+        ],
+        "textIncludes": [
+          "且其中某一日收盘价站上5日均线；"
+        ]
+      },
+      "evidence": [
+        "src/etf_tracker/strategy.py 使用近252日高点回撤、已买金额、估值和第4笔过滤条件推导科创50四笔买入候选。",
+        "tests/test_strategy.py 与 tests/test_phase_two_strategy.py 覆盖第一笔触发、第二/第三笔、估值延后、第4笔过滤和买入阶段推进。"
+      ]
+    },
+    {
+      "id": "PHASE4-067-KC50-BUY-STEPS",
+      "status": "pass",
+      "match": {
+        "sectionIncludes": [
+          "八、科创50策略模块"
+        ],
+        "textIncludes": [
+          "若第5个不创新低交易日未站上5日均线，则继续等待，直到某一交易日同时满足两项条件。"
+        ]
+      },
+      "evidence": [
+        "src/etf_tracker/strategy.py 使用近252日高点回撤、已买金额、估值和第4笔过滤条件推导科创50四笔买入候选。",
+        "tests/test_strategy.py 与 tests/test_phase_two_strategy.py 覆盖第一笔触发、第二/第三笔、估值延后、第4笔过滤和买入阶段推进。"
+      ]
+    },
+    {
+      "id": "PHASE4-068-SECTION-HEADING-EVIDENCE",
+      "status": "pass",
+      "match": {
+        "sectionIncludes": [
+          "八、科创50策略模块"
+        ],
+        "textIncludes": [
+          "### 8.4 止盈规则"
+        ]
+      },
+      "evidence": [
+        "src/etf_tracker/strategy.py 实现科创50固定止盈、移动止盈高点和10日均线移动止盈。",
+        "tests/test_phase_two_strategy.py 覆盖固定止盈、已记录止盈不重复和移动止盈。"
+      ]
+    },
+    {
+      "id": "PHASE4-069-KC50-PROFIT-TAKE",
+      "status": "pass",
+      "match": {
+        "sectionIncludes": [
+          "八、科创50策略模块"
+        ],
+        "textIncludes": [
+          "止盈基准：首次止盈前锁定的综合持仓成本。部分卖出后，不重新计算止盈基准成本。"
+        ]
+      },
+      "evidence": [
+        "src/etf_tracker/strategy.py 按科创50持仓成本、已记录止盈状态、移动止盈高点和 S2 阈值生成固定/移动止盈提醒。",
+        "tests/test_phase_two_strategy.py 覆盖 15%/30% 固定止盈、已记录止盈不重复、移动止盈高点和 12%/13% 回撤阈值。"
+      ]
+    },
+    {
+      "id": "PHASE4-070-KC50-PROFIT-TAKE",
+      "status": "pass",
+      "match": {
+        "sectionIncludes": [
+          "八、科创50策略模块"
+        ],
+        "textIncludes": [
+          "单次卖出金额不足300元 | 可合并至下一档止盈执行。"
+        ]
+      },
+      "evidence": [
+        "src/etf_tracker/strategy.py 按科创50持仓成本、已记录止盈状态、移动止盈高点和 S2 阈值生成固定/移动止盈提醒。",
+        "tests/test_phase_two_strategy.py 覆盖 15%/30% 固定止盈、已记录止盈不重复、移动止盈高点和 12%/13% 回撤阈值。"
+      ]
+    },
+    {
+      "id": "PHASE4-071-KC50-PROFIT-TAKE",
+      "status": "pass",
+      "match": {
+        "sectionIncludes": [
+          "八、科创50策略模块"
+        ],
+        "textIncludes": [
+          "第二次止盈成交当日收盘价作为剩余仓位初始阶段反弹高点；"
+        ]
+      },
+      "evidence": [
+        "src/etf_tracker/strategy.py 按科创50持仓成本、已记录止盈状态、移动止盈高点和 S2 阈值生成固定/移动止盈提醒。",
+        "tests/test_phase_two_strategy.py 覆盖 15%/30% 固定止盈、已记录止盈不重复、移动止盈高点和 12%/13% 回撤阈值。"
+      ]
+    },
+    {
+      "id": "PHASE4-072-KC50-PROFIT-TAKE",
+      "status": "pass",
+      "match": {
+        "sectionIncludes": [
+          "八、科创50策略模块"
+        ],
+        "textIncludes": [
+          "之后若出现更高收盘价，则更新阶段反弹高点；"
+        ]
+      },
+      "evidence": [
+        "src/etf_tracker/strategy.py 按科创50持仓成本、已记录止盈状态、移动止盈高点和 S2 阈值生成固定/移动止盈提醒。",
+        "tests/test_phase_two_strategy.py 覆盖 15%/30% 固定止盈、已记录止盈不重复、移动止盈高点和 12%/13% 回撤阈值。"
+      ]
+    },
+    {
+      "id": "PHASE4-073-SECTION-HEADING-EVIDENCE",
+      "status": "pass",
+      "match": {
+        "sectionIncludes": [
+          "八、科创50策略模块"
+        ],
+        "textIncludes": [
+          "### 8.5 止损与观察规则"
+        ]
+      },
+      "evidence": [
+        "src/etf_tracker/strategy.py 实现 H3 净值止损、H3恢复观察和 H4 单日跌幅暂停。",
+        "tests/test_strategy.py 与 tests/test_phase_two_strategy.py 覆盖 H3 1400/1500/1700、恢复和 H4。"
+      ]
+    },
+    {
+      "id": "PHASE4-074-KC50-GRADED-RISK",
+      "status": "pass",
+      "match": {
+        "sectionIncludes": [
+          "八、科创50策略模块"
+        ],
+        "textIncludes": [
+          "科创50ETF单日收盘跌幅超过8% | 次日暂停全部新增买入。"
+        ]
+      },
+      "evidence": [
+        "src/etf_tracker/strategy.py 计算科创50波段净值、H3 1400/1500/1700 阈值、H3恢复、H4跌幅、分级风控和时间复核。",
+        "tests/test_strategy.py 与 tests/test_phase_two_strategy.py 覆盖 H3 阈值优先级、1700阻断、5日恢复、H4、2/3/4笔分级风控和60日复核。"
+      ]
+    },
+    {
+      "id": "PHASE4-075-FUNDS-POOLS",
+      "status": "pass",
+      "match": {
+        "sectionIncludes": [
+          "八、科创50策略模块"
+        ],
+        "textIncludes": [
+          "科创50波段账户净值 = 科创50持仓市值 + 科创50波段现金余额，不包含全局备用金。"
+        ]
+      },
+      "evidence": [
+        "src/etf_tracker/portfolio.py 按 a500_grid、kc50_wave、reserve 分池计算现金余额和卖出回池。",
+        "tests/test_accounting.py 覆盖资金池初始余额、卖出回池和备用金独立归属。"
+      ]
+    },
+    {
+      "id": "PHASE4-076-SECTION-HEADING-EVIDENCE",
+      "status": "pass",
+      "match": {
+        "sectionIncludes": [
+          "八、科创50策略模块"
+        ],
+        "textIncludes": [
+          "### 8.6 分级风控"
+        ]
+      },
+      "evidence": [
+        "src/etf_tracker/strategy.py 按买入笔数区分2笔暂停、3笔第4笔复核和4笔完整风控减仓。",
+        "tests/test_phase_two_strategy.py 覆盖分级风控的2笔、3笔和4笔阶段。"
+      ]
+    },
+    {
+      "id": "PHASE4-077-KC50-GRADED-RISK",
+      "status": "pass",
+      "match": {
+        "sectionIncludes": [
+          "八、科创50策略模块"
+        ],
+        "textIncludes": [
+          "买入1笔 | 无额外风控，按标准流程跟踪。"
+        ]
+      },
+      "evidence": [
+        "src/etf_tracker/strategy.py 计算科创50波段净值、H3 1400/1500/1700 阈值、H3恢复、H4跌幅、分级风控和时间复核。",
+        "tests/test_strategy.py 与 tests/test_phase_two_strategy.py 覆盖 H3 阈值优先级、1700阻断、5日恢复、H4、2/3/4笔分级风控和60日复核。"
+      ]
+    },
+    {
+      "id": "PHASE4-078-KC50-GRADED-RISK",
+      "status": "pass",
+      "match": {
+        "sectionIncludes": [
+          "八、科创50策略模块"
+        ],
+        "textIncludes": [
+          "买入2笔 | 若连续10个交易日收盘价低于20日均线，暂停新增买入。"
+        ]
+      },
+      "evidence": [
+        "src/etf_tracker/strategy.py 计算科创50波段净值、H3 1400/1500/1700 阈值、H3恢复、H4跌幅、分级风控和时间复核。",
+        "tests/test_strategy.py 与 tests/test_phase_two_strategy.py 覆盖 H3 阈值优先级、1700阻断、5日恢复、H4、2/3/4笔分级风控和60日复核。"
+      ]
+    },
+    {
+      "id": "PHASE4-079-KC50-GRADED-RISK",
+      "status": "pass",
+      "match": {
+        "sectionIncludes": [
+          "八、科创50策略模块"
+        ],
+        "textIncludes": [
+          "买满4笔 | 启动完整风控减仓规则。"
+        ]
+      },
+      "evidence": [
+        "src/etf_tracker/strategy.py 计算科创50波段净值、H3 1400/1500/1700 阈值、H3恢复、H4跌幅、分级风控和时间复核。",
+        "tests/test_strategy.py 与 tests/test_phase_two_strategy.py 覆盖 H3 阈值优先级、1700阻断、5日恢复、H4、2/3/4笔分级风控和60日复核。"
+      ]
+    },
+    {
+      "id": "PHASE4-080-KC50-GRADED-RISK",
+      "status": "pass",
+      "match": {
+        "sectionIncludes": [
+          "八、科创50策略模块"
+        ],
+        "textIncludes": [
+          "完整风控减仓："
+        ]
+      },
+      "evidence": [
+        "src/etf_tracker/strategy.py 计算科创50波段净值、H3 1400/1500/1700 阈值、H3恢复、H4跌幅、分级风控和时间复核。",
+        "tests/test_strategy.py 与 tests/test_phase_two_strategy.py 覆盖 H3 阈值优先级、1700阻断、5日恢复、H4、2/3/4笔分级风控和60日复核。"
+      ]
+    },
+    {
+      "id": "PHASE4-081-KC50-GRADED-RISK",
+      "status": "pass",
+      "match": {
+        "sectionIncludes": [
+          "八、科创50策略模块"
+        ],
+        "textIncludes": [
+          "买满4笔后，连续20个交易日收盘价低于20日均线，20日均线持续下行，且相对综合持仓成本亏损超过15% | 启动分3次减仓，每次减1/3，每周执行一次。"
+        ]
+      },
+      "evidence": [
+        "src/etf_tracker/strategy.py 计算科创50波段净值、H3 1400/1500/1700 阈值、H3恢复、H4跌幅、分级风控和时间复核。",
+        "tests/test_strategy.py 与 tests/test_phase_two_strategy.py 覆盖 H3 阈值优先级、1700阻断、5日恢复、H4、2/3/4笔分级风控和60日复核。"
+      ]
+    },
+    {
+      "id": "PHASE4-082-KC50-GRADED-RISK",
+      "status": "pass",
+      "match": {
+        "sectionIncludes": [
+          "八、科创50策略模块"
+        ],
+        "textIncludes": [
+          "减仓过程中，收盘价重新站上20日均线，且连续3个交易日不跌破 | 暂停后续减仓，剩余仓位恢复正常止盈规则。"
+        ]
+      },
+      "evidence": [
+        "src/etf_tracker/strategy.py 计算科创50波段净值、H3 1400/1500/1700 阈值、H3恢复、H4跌幅、分级风控和时间复核。",
+        "tests/test_strategy.py 与 tests/test_phase_two_strategy.py 覆盖 H3 阈值优先级、1700阻断、5日恢复、H4、2/3/4笔分级风控和60日复核。"
+      ]
+    },
+    {
+      "id": "PHASE4-083-KC50-GRADED-RISK",
+      "status": "pass",
+      "match": {
+        "sectionIncludes": [
+          "八、科创50策略模块"
+        ],
+        "textIncludes": [
+          "优先级："
+        ]
+      },
+      "evidence": [
+        "src/etf_tracker/strategy.py 计算科创50波段净值、H3 1400/1500/1700 阈值、H3恢复、H4跌幅、分级风控和时间复核。",
+        "tests/test_strategy.py 与 tests/test_phase_two_strategy.py 覆盖 H3 阈值优先级、1700阻断、5日恢复、H4、2/3/4笔分级风控和60日复核。"
+      ]
+    },
+    {
+      "id": "PHASE4-084-SECTION-HEADING-EVIDENCE",
+      "status": "pass",
+      "match": {
+        "sectionIncludes": [
+          "八、科创50策略模块"
+        ],
+        "textIncludes": [
+          "### 8.7 时间复核"
+        ]
+      },
+      "evidence": [
+        "src/etf_tracker/strategy.py 按交易日计算科创50持仓天数并输出60/120日复核提醒。",
+        "tests/test_phase_two_strategy.py 覆盖科创50 60日时间复核提醒。"
+      ]
+    },
+    {
+      "id": "PHASE4-085-KC50-PROFIT-TAKE",
+      "status": "pass",
+      "match": {
+        "sectionIncludes": [
+          "八、科创50策略模块"
+        ],
+        "textIncludes": [
+          "持仓超过60个交易日，盈利5%-15%，且收盘价跌破20日均线 | 可选择卖出一半或全部，并记录理由。"
+        ]
+      },
+      "evidence": [
+        "src/etf_tracker/strategy.py 按科创50持仓成本、已记录止盈状态、移动止盈高点和 S2 阈值生成固定/移动止盈提醒。",
+        "tests/test_phase_two_strategy.py 覆盖 15%/30% 固定止盈、已记录止盈不重复、移动止盈高点和 12%/13% 回撤阈值。"
+      ]
+    },
+    {
+      "id": "PHASE4-086-KC50-PROFIT-TAKE",
+      "status": "pass",
+      "match": {
+        "sectionIncludes": [
+          "八、科创50策略模块"
+        ],
+        "textIncludes": [
+          "持仓超过120个交易日，盈利仍不足5% | 强制专项复核，决定继续持有、减仓或退出。"
+        ]
+      },
+      "evidence": [
+        "src/etf_tracker/strategy.py 按科创50持仓成本、已记录止盈状态、移动止盈高点和 S2 阈值生成固定/移动止盈提醒。",
+        "tests/test_phase_two_strategy.py 覆盖 15%/30% 固定止盈、已记录止盈不重复、移动止盈高点和 12%/13% 回撤阈值。"
+      ]
+    },
+    {
+      "id": "PHASE4-087-LIFECYCLE-LONG-TERM-RISK",
+      "status": "pass",
+      "match": {
+        "sectionIncludes": [
+          "十一、策略暂停、失效与重启"
+        ],
+        "textIncludes": [
+          "### 11.1 策略失效规则"
+        ]
+      },
+      "evidence": [
+        "src/etf_tracker/strategy.py 从成交记录和行情推导 H6 清仓冷却、重启试探仓、H7 连续3笔10日浮亏和长期失效状态。",
+        "tests/test_phase_three_strategy.py 覆盖 H6 第4/第5交易日、重锁指标、试探仓上限、H7、最大回撤、H3轮次和 A500 网格90日空转。"
+      ]
+    },
+    {
+      "id": "PHASE4-088-MANUAL-REVIEW-BOUNDARY",
+      "status": "manual",
+      "match": {
+        "sectionIncludes": [
+          "十一、策略暂停、失效与重启"
+        ],
+        "textIncludes": [
+          "A500网格连续90个交易日无有效买卖成交 | 季度复核是否调整网格间距或暂停策略。"
+        ]
+      },
+      "evidence": [
+        "季度复核、估值平台选择、截图存档、策略有效性最终判断和跨池例外属于人工复核边界，系统只展示证据和提醒。"
+      ]
+    },
+    {
+      "id": "PHASE4-089-PROFIT-LOCK",
+      "status": "pass",
+      "match": {
+        "sectionIncludes": [
+          "十一、策略暂停、失效与重启"
+        ],
+        "textIncludes": [
+          "总账户最大回撤超过12% | 暂停所有新增买入，只允许止盈、减仓和复核。"
+        ]
+      },
+      "evidence": [
+        "src/etf_tracker/strategy.py 将 locked_cash 计入账户价值但排除在交易资金池外，并在累计收益达15%时提示收益锁定。",
+        "tests/test_phase_three_strategy.py 覆盖不可交易现金池展示、收益锁定建议金额和资金池隔离。"
+      ]
+    },
+    {
+      "id": "PHASE4-090-MANUAL-REVIEW-BOUNDARY",
+      "status": "manual",
+      "match": {
+        "sectionIncludes": [
+          "十一、策略暂停、失效与重启"
+        ],
+        "textIncludes": [
+          "策略运行6个月后，总账户收益率显著低于同期沪深300指数涨跌幅或货币基金收益中较高者 | 重新评估策略有效性。"
+        ]
+      },
+      "evidence": [
+        "季度复核、估值平台选择、截图存档、策略有效性最终判断和跨池例外属于人工复核边界，系统只展示证据和提醒。"
+      ]
+    },
+    {
+      "id": "PHASE4-091-LIFECYCLE-LONG-TERM-RISK",
+      "status": "pass",
+      "match": {
+        "sectionIncludes": [
+          "十一、策略暂停、失效与重启"
+        ],
+        "textIncludes": [
+          "单标的连续3笔新增买入触发10日浮亏规则 | 暂停该标的新增买入，专项复核。"
+        ]
+      },
+      "evidence": [
+        "src/etf_tracker/strategy.py 从成交记录和行情推导 H6 清仓冷却、重启试探仓、H7 连续3笔10日浮亏和长期失效状态。",
+        "tests/test_phase_three_strategy.py 覆盖 H6 第4/第5交易日、重锁指标、试探仓上限、H7、最大回撤、H3轮次和 A500 网格90日空转。"
+      ]
+    },
+    {
+      "id": "PHASE4-092-LIFECYCLE-LONG-TERM-RISK",
+      "status": "pass",
+      "match": {
+        "sectionIncludes": [
+          "十一、策略暂停、失效与重启"
+        ],
+        "textIncludes": [
+          "### 11.2 清仓后重启"
+        ]
+      },
+      "evidence": [
+        "src/etf_tracker/strategy.py 从成交记录和行情推导 H6 清仓冷却、重启试探仓、H7 连续3笔10日浮亏和长期失效状态。",
+        "tests/test_phase_three_strategy.py 覆盖 H6 第4/第5交易日、重锁指标、试探仓上限、H7、最大回撤、H3轮次和 A500 网格90日空转。"
+      ]
+    },
+    {
+      "id": "PHASE4-093-LIFECYCLE-LONG-TERM-RISK",
+      "status": "pass",
+      "match": {
+        "sectionIncludes": [
+          "十一、策略暂停、失效与重启"
+        ],
+        "textIncludes": [
+          "任一策略清仓后，至少等待5个交易日。"
+        ]
+      },
+      "evidence": [
+        "src/etf_tracker/strategy.py 从成交记录和行情推导 H6 清仓冷却、重启试探仓、H7 连续3笔10日浮亏和长期失效状态。",
+        "tests/test_phase_three_strategy.py 覆盖 H6 第4/第5交易日、重锁指标、试探仓上限、H7、最大回撤、H3轮次和 A500 网格90日空转。"
+      ]
+    },
+    {
+      "id": "PHASE4-094-LIFECYCLE-LONG-TERM-RISK",
+      "status": "pass",
+      "match": {
+        "sectionIncludes": [
+          "十一、策略暂停、失效与重启"
+        ],
+        "textIncludes": [
+          "重启前必须重新锁定基准价、阶段高点、网格上下沿和资金池余额。"
+        ]
+      },
+      "evidence": [
+        "src/etf_tracker/strategy.py 从成交记录和行情推导 H6 清仓冷却、重启试探仓、H7 连续3笔10日浮亏和长期失效状态。",
+        "tests/test_phase_three_strategy.py 覆盖 H6 第4/第5交易日、重锁指标、试探仓上限、H7、最大回撤、H3轮次和 A500 网格90日空转。"
+      ]
+    },
+    {
+      "id": "PHASE4-095-LIFECYCLE-LONG-TERM-RISK",
+      "status": "pass",
+      "match": {
+        "sectionIncludes": [
+          "十一、策略暂停、失效与重启"
+        ],
+        "textIncludes": [
+          "重启时第一笔买入金额不超过正常首笔的50%，作为试探仓。"
+        ]
+      },
+      "evidence": [
+        "src/etf_tracker/strategy.py 从成交记录和行情推导 H6 清仓冷却、重启试探仓、H7 连续3笔10日浮亏和长期失效状态。",
+        "tests/test_phase_three_strategy.py 覆盖 H6 第4/第5交易日、重锁指标、试探仓上限、H7、最大回撤、H3轮次和 A500 网格90日空转。"
+      ]
+    },
+    {
+      "id": "PHASE4-096-LIFECYCLE-LONG-TERM-RISK",
+      "status": "pass",
+      "match": {
+        "sectionIncludes": [
+          "十一、策略暂停、失效与重启"
+        ],
+        "textIncludes": [
+          "试探仓确认有效后，视为本轮第一笔买入的一部分。"
+        ]
+      },
+      "evidence": [
+        "src/etf_tracker/strategy.py 从成交记录和行情推导 H6 清仓冷却、重启试探仓、H7 连续3笔10日浮亏和长期失效状态。",
+        "tests/test_phase_three_strategy.py 覆盖 H6 第4/第5交易日、重锁指标、试探仓上限、H7、最大回撤、H3轮次和 A500 网格90日空转。"
+      ]
+    },
+    {
+      "id": "PHASE4-097-LIFECYCLE-LONG-TERM-RISK",
+      "status": "pass",
+      "match": {
+        "sectionIncludes": [
+          "十一、策略暂停、失效与重启"
+        ],
+        "textIncludes": [
+          "恢复正常节奏时，第一笔剩余金额可在下一个交易日补足；若试探仓失效或触发暂停规则，则不补足。"
+        ]
+      },
+      "evidence": [
+        "src/etf_tracker/strategy.py 从成交记录和行情推导 H6 清仓冷却、重启试探仓、H7 连续3笔10日浮亏和长期失效状态。",
+        "tests/test_phase_three_strategy.py 覆盖 H6 第4/第5交易日、重锁指标、试探仓上限、H7、最大回撤、H3轮次和 A500 网格90日空转。"
+      ]
+    },
+    {
+      "id": "PHASE4-098-PROFIT-LOCK",
+      "status": "pass",
+      "match": {
+        "sectionIncludes": [
+          "十一、策略暂停、失效与重启"
+        ],
+        "textIncludes": [
+          "### 11.3 收益锁定"
+        ]
+      },
+      "evidence": [
+        "src/etf_tracker/strategy.py 将 locked_cash 计入账户价值但排除在交易资金池外，并在累计收益达15%时提示收益锁定。",
+        "tests/test_phase_three_strategy.py 覆盖不可交易现金池展示、收益锁定建议金额和资金池隔离。"
+      ]
+    },
+    {
+      "id": "PHASE4-099-PROFIT-LOCK",
+      "status": "pass",
+      "match": {
+        "sectionIncludes": [
+          "十一、策略暂停、失效与重启"
+        ],
+        "textIncludes": [
+          "总账户累计收益达到初始本金15% | 至少提取收益的1/3转入不可交易现金池。"
+        ]
+      },
+      "evidence": [
+        "src/etf_tracker/strategy.py 将 locked_cash 计入账户价值但排除在交易资金池外，并在累计收益达15%时提示收益锁定。",
+        "tests/test_phase_three_strategy.py 覆盖不可交易现金池展示、收益锁定建议金额和资金池隔离。"
+      ]
+    },
+    {
+      "id": "PHASE4-100-PROFIT-LOCK",
+      "status": "pass",
+      "match": {
+        "sectionIncludes": [
+          "十一、策略暂停、失效与重启"
+        ],
+        "textIncludes": [
+          "不可交易现金池定义："
+        ]
+      },
+      "evidence": [
+        "src/etf_tracker/strategy.py 将 locked_cash 计入账户价值但排除在交易资金池外，并在累计收益达15%时提示收益锁定。",
+        "tests/test_phase_three_strategy.py 覆盖不可交易现金池展示、收益锁定建议金额和资金池隔离。"
+      ]
+    },
+    {
+      "id": "PHASE4-101-MANUAL-REVIEW-BOUNDARY",
+      "status": "manual",
+      "match": {
+        "sectionIncludes": [
+          "十一、策略暂停、失效与重启"
+        ],
+        "textIncludes": [
+          "可放入货币基金、银行活期或其他低风险现金管理工具；"
+        ]
+      },
+      "evidence": [
+        "季度复核、估值平台选择、截图存档、策略有效性最终判断和跨池例外属于人工复核边界，系统只展示证据和提醒。"
+      ]
+    },
+    {
+      "id": "PHASE4-102-PROFIT-LOCK",
+      "status": "pass",
+      "match": {
+        "sectionIncludes": [
+          "十一、策略暂停、失效与重启"
+        ],
+        "textIncludes": [
+          "不得用于任何主动交易；"
+        ]
+      },
+      "evidence": [
+        "src/etf_tracker/strategy.py 将 locked_cash 计入账户价值但排除在交易资金池外，并在累计收益达15%时提示收益锁定。",
+        "tests/test_phase_three_strategy.py 覆盖不可交易现金池展示、收益锁定建议金额和资金池隔离。"
+      ]
+    },
+    {
+      "id": "PHASE4-103-MANUAL-REVIEW-BOUNDARY",
+      "status": "manual",
+      "match": {
+        "sectionIncludes": [
+          "十一、策略暂停、失效与重启"
+        ],
+        "textIncludes": [
+          "只有在季度复核或策略重启时，才可重新讨论是否调配。"
+        ]
+      },
+      "evidence": [
+        "季度复核、估值平台选择、截图存档、策略有效性最终判断和跨池例外属于人工复核边界，系统只展示证据和提醒。"
+      ]
+    },
+    {
+      "id": "PHASE4-104-TRADE-RECORD-MISSING",
+      "status": "pass",
+      "match": {
+        "sectionIncludes": [
+          "十二、执行记录表"
+        ],
+        "textIncludes": [
+          "每次交易后记录以下内容："
+        ]
+      },
+      "evidence": [
+        "Trade 模型、Python 解析器、Worker normalization 和 docs/index.html 已支持 signal_date、execution_date、trigger_rule、cash_balance、risk_gate_triggered、risk_gate_snapshot。",
+        "tests/test_trades.py、tests/worker.test.mjs 和 tests/test_report.py 覆盖新旧成交字段兼容、保存、展示和合规警告。"
+      ]
+    },
+    {
+      "id": "PHASE4-105-A500-GRID-ARCHIVE",
+      "status": "pass",
+      "match": {
+        "sectionIncludes": [
+          "十五、最终执行摘要"
+        ],
+        "textIncludes": [
+          "A500跌破网格下沿后，暂停普通网格补仓；备用金只在极端条件下人工复核使用。"
+        ]
+      },
+      "evidence": [
+        "src/etf_tracker/strategy.py 输出 A500 实际/建议网格基准、上下沿、间距、开放网格和跌破下沿暂停。",
+        "tests/test_strategy.py 与 tests/test_phase_two_strategy.py 覆盖 A500 基准、5.5% 间距、普通补仓、配对卖出、下沿暂停和上沿提醒。"
+      ]
+    },
+    {
+      "id": "PHASE4-106-A500-RESERVE-LIMITS",
+      "status": "pass",
+      "match": {
+        "sectionIncludes": [
+          "十五、最终执行摘要"
+        ],
+        "textIncludes": [
+          "A500备用金每次最多1000元，单独记录，不混入普通网格。"
+        ]
+      },
+      "evidence": [
+        "src/etf_tracker/strategy.py 只把 A500 备用金作为人工复核候选，并检查估值、20日间隔、1000元单份和 8%/12% 边界。",
+        "tests/test_phase_two_strategy.py 覆盖 A/B/C 备用金候选、估值要求、间隔和备用金仓位边界。"
+      ]
+    },
+    {
+      "id": "PHASE4-107-MANUAL-REVIEW-BOUNDARY",
+      "status": "manual",
+      "match": {
+        "sectionIncludes": [
+          "十五、最终执行摘要"
+        ],
+        "textIncludes": [
+          "A500机动资金仅用于份额误差、滑点处理和经记录的季度复核调整，不得绕过硬规则加仓。"
+        ]
+      },
+      "evidence": [
+        "季度复核、估值平台选择、截图存档、策略有效性最终判断和跨池例外属于人工复核边界，系统只展示证据和提醒。"
+      ]
+    },
+    {
+      "id": "PHASE4-108-KC50-BUY-STEPS",
+      "status": "pass",
+      "match": {
+        "sectionIncludes": [
+          "十五、最终执行摘要"
+        ],
+        "textIncludes": [
+          "科创50按22%、30%、38%、45%回撤分4笔买入，对应金额400、500、500、600元。"
+        ]
+      },
+      "evidence": [
+        "src/etf_tracker/strategy.py 使用近252日高点回撤、已买金额、估值和第4笔过滤条件推导科创50四笔买入候选。",
+        "tests/test_strategy.py 与 tests/test_phase_two_strategy.py 覆盖第一笔触发、第二/第三笔、估值延后、第4笔过滤和买入阶段推进。"
+      ]
+    },
+    {
+      "id": "PHASE4-109-H1-RISK-GATE",
+      "status": "pass",
+      "match": {
+        "sectionIncludes": [
+          "十五、最终执行摘要"
+        ],
+        "textIncludes": [
+          "总投入成本达到70%后启用风险闸门，达到85%后禁止新增买入。"
+        ]
+      },
+      "evidence": [
+        "src/etf_tracker/strategy.py 在 70%-85% 投入区间计算 H1 两项硬条件、三项参考条件和新增买入允许结论。",
+        "tests/test_strategy.py 覆盖 H1 全通过、参考条件不足、双标的同时弱势、估值缺失和 85% 绝对上限。"
+      ]
+    },
+    {
+      "id": "PHASE4-110-S1-CORRELATION",
+      "status": "pass",
+      "match": {
+        "sectionIncludes": [
+          "十五、最终执行摘要"
+        ],
+        "textIncludes": [
+          "当A500与科创50过去20日相关系数大于0.85时，双标的合计单日新增买入金额不超过800元。"
+        ]
+      },
+      "evidence": [
+        "src/etf_tracker/strategy.py 根据 20日相关系数执行 S1 同日新增买入限额，并根据 20日年化波动率执行 S2 移动止盈阈值。",
+        "tests/test_phase_two_strategy.py 覆盖 S1 800元限额与 A500 优先，以及 S2 高波动 13% 阈值。"
+      ]
+    },
+    {
+      "id": "PHASE4-111-S1-CORRELATION",
+      "status": "pass",
+      "match": {
+        "sectionIncludes": [
+          "十五、最终执行摘要"
+        ],
+        "textIncludes": [
+          "S1延后复核当日可直接执行，不再顺延至T+3；800元限制按计划下单金额计算，且延后执行日仍需按当日S1状态判断限额。"
+        ]
+      },
+      "evidence": [
+        "src/etf_tracker/strategy.py 根据 20日相关系数执行 S1 同日新增买入限额，并根据 20日年化波动率执行 S2 移动止盈阈值。",
+        "tests/test_phase_two_strategy.py 覆盖 S1 800元限额与 A500 优先，以及 S2 高波动 13% 阈值。"
+      ]
+    },
+    {
+      "id": "PHASE4-112-LIFECYCLE-LONG-TERM-RISK",
+      "status": "pass",
+      "match": {
+        "sectionIncludes": [
+          "十五、最终执行摘要"
+        ],
+        "textIncludes": [
+          "清仓后至少等待5个交易日，并重新锁定所有关键参数后方可重启。"
+        ]
+      },
+      "evidence": [
+        "src/etf_tracker/strategy.py 从成交记录和行情推导 H6 清仓冷却、重启试探仓、H7 连续3笔10日浮亏和长期失效状态。",
+        "tests/test_phase_three_strategy.py 覆盖 H6 第4/第5交易日、重锁指标、试探仓上限、H7、最大回撤、H3轮次和 A500 网格90日空转。"
+      ]
+    },
+    {
+      "id": "PHASE4-113-MANUAL-REVIEW-BOUNDARY",
+      "status": "manual",
+      "match": {
+        "sectionIncludes": [
+          "十五、最终执行摘要"
+        ],
+        "textIncludes": [
+          "参考指引必须设定复核频率，避免因“可裁量”而被遗忘。"
+        ]
+      },
+      "evidence": [
+        "季度复核、估值平台选择、截图存档、策略有效性最终判断和跨池例外属于人工复核边界，系统只展示证据和提醒。"
+      ]
+    },
+    {
+      "id": "PHASE4-114-SECURITY-NO-AUTO-TRADE",
+      "status": "manual",
+      "match": {
+        "sectionIncludes": [
+          "十五、最终执行摘要"
+        ],
+        "textIncludes": [
+          "风险提示：本策略仅为规则化交易方案整理，不保证盈利，也不构成任何投资建议。ETF价格波动、流动性、手续费、跟踪误差、估值数据口径和个人执行纪律均可能影响实际结果。"
+        ]
+      },
+      "evidence": [
+        "README.md、src/etf_tracker/report.py 和报告文案明确本项目只做记录、复盘和提醒。",
+        "项目中没有券商登录、券商 API 或自动下单接口。"
+      ]
+    }
+  ]
+}
