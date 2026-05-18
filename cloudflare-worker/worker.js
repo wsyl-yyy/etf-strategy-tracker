@@ -16,19 +16,19 @@ export default {
         return jsonResponse(request, env, { ok: true });
       }
       if (url.pathname === "/trade" && request.method === "POST") {
-        return handleTradeSubmit(request, env);
+        return await handleTradeSubmit(request, env);
       }
       if (url.pathname === "/trades" && request.method === "GET") {
-        return handleTradesRead(request, env);
+        return await handleTradesRead(request, env);
       }
       if (url.pathname === "/trades/manage" && request.method === "POST") {
-        return handleTradesManage(request, env);
+        return await handleTradesManage(request, env);
       }
       if (tradeId && request.method === "PUT") {
-        return handleTradeUpdate(request, env, tradeId);
+        return await handleTradeUpdate(request, env, tradeId);
       }
       if (tradeId && request.method === "DELETE") {
-        return handleTradeDelete(request, env, tradeId);
+        return await handleTradeDelete(request, env, tradeId);
       }
       return jsonResponse(request, env, { ok: false, error: "Not found" }, 404);
     } catch (error) {
@@ -135,12 +135,16 @@ async function dispatchResponse(request, env, successMessage, successBody, paylo
 function normalizeTrade(body) {
   const side = String(body.side || "").trim();
   if (!["买入", "卖出"].includes(side)) {
-    throw new Error("方向只能是买入或卖出。");
+    throw new HttpError("方向只能是买入或卖出。", 400);
   }
 
-  const date = String(body.date || "").trim();
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
-    throw new Error("日期格式应为 YYYY-MM-DD。");
+  const date = normalizeDate(body.date || body.execution_date || body.signal_date, "日期");
+  const signalDate = normalizeOptionalDate(body.signal_date, "信号确认日") || date;
+  const executionDate = normalizeOptionalDate(body.execution_date, "实际执行日") || date;
+  const cashBalance = optionalFiniteNumber(body.cash_balance, "现金余额");
+
+  if (!date) {
+    throw new HttpError("日期格式应为 YYYY-MM-DD。", 400);
   }
 
   const symbol = normalizeSymbol(body.symbol);
@@ -148,20 +152,72 @@ function normalizeTrade(body) {
   const amount = requiredNumber(body.amount, "成交金额");
   const shares = requiredNumber(body.shares, "成交份额");
   const fee = optionalNumber(body.fee);
+  const note = String(body.note || "").trim();
+  const triggerRule = String(body.trigger_rule || "").trim();
+  const module = String(body.module || "").trim();
+  const complianceWarnings = complianceWarningsForTrade({ symbol, side, amount, shares, triggerRule, note });
+  if (complianceWarnings.length > 0 && !note) {
+    throw new HttpError("科创50买入偏离份额或目标金额时必须填写复盘备注。", 400);
+  }
 
   return {
     id: crypto.randomUUID(),
     created_at: new Date().toISOString(),
     date,
+    signal_date: signalDate,
+    execution_date: executionDate,
     symbol,
     side,
-    module: String(body.module || "").trim(),
+    module,
+    trigger_rule: triggerRule,
     price,
     amount,
     shares,
     fee,
-    note: String(body.note || "").trim(),
+    cash_balance: cashBalance,
+    risk_gate_triggered: Boolean(body.risk_gate_triggered),
+    risk_gate_snapshot: String(body.risk_gate_snapshot || "").trim(),
+    compliance_warnings: complianceWarnings,
+    note,
   };
+}
+
+function complianceWarningsForTrade({ symbol, side, amount, shares, triggerRule }) {
+  if (symbol !== "588000" || side !== "买入") {
+    return [];
+  }
+
+  const warnings = [];
+  if (Math.abs(shares % 100) > 1e-9) {
+    warnings.push("科创50买入份额不是100份整数倍。");
+  }
+
+  const target = kc50TargetAmount(triggerRule) || { index: 1, amount: 400 };
+  if (target && amount > target.amount + 1e-9) {
+    warnings.push(`科创50第${target.index}笔买入金额超过目标金额${target.amount}元。`);
+  }
+  return warnings;
+}
+
+function kc50TargetAmount(triggerRule) {
+  const match = String(triggerRule || "").match(/第\s*([1-4一二三四])\s*笔/);
+  if (!match) return null;
+  const index = { 一: 1, 二: 2, 三: 3, 四: 4 }[match[1]] || Number(match[1]);
+  const amounts = { 1: 400, 2: 500, 3: 500, 4: 600 };
+  return amounts[index] ? { index, amount: amounts[index] } : null;
+}
+
+function normalizeDate(value, label) {
+  const text = String(value || "").trim();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(text)) {
+    throw new HttpError(`${label}格式应为 YYYY-MM-DD。`, 400);
+  }
+  return text;
+}
+
+function normalizeOptionalDate(value, label) {
+  if (value === undefined || value === null || value === "") return "";
+  return normalizeDate(value, label);
 }
 
 function normalizeSymbol(value) {
@@ -171,7 +227,7 @@ function normalizeSymbol(value) {
   }
   symbol = symbol.padStart(6, "0");
   if (!/^\d{6}$/.test(symbol)) {
-    throw new Error("标的代码应为 6 位数字。");
+    throw new HttpError("标的代码应为 6 位数字。", 400);
   }
   return symbol;
 }
@@ -179,7 +235,7 @@ function normalizeSymbol(value) {
 function requiredNumber(value, label) {
   const number = Number(value);
   if (!Number.isFinite(number) || number <= 0) {
-    throw new Error(`${label}必须大于 0。`);
+    throw new HttpError(`${label}必须大于 0。`, 400);
   }
   return number;
 }
@@ -188,7 +244,16 @@ function optionalNumber(value) {
   if (value === undefined || value === null || value === "") return 0;
   const number = Number(value);
   if (!Number.isFinite(number) || number < 0) {
-    throw new Error("交易费用不能小于 0。");
+    throw new HttpError("交易费用不能小于 0。", 400);
+  }
+  return number;
+}
+
+function optionalFiniteNumber(value, label) {
+  if (value === undefined || value === null || value === "") return null;
+  const number = Number(value);
+  if (!Number.isFinite(number)) {
+    throw new HttpError(`${label}必须是有效数字。`, 400);
   }
   return number;
 }

@@ -29,20 +29,35 @@ data/sample_trades.csv
 docs/index.html
   GitHub Pages UI. Contains local report decryption, trade submit form, and trade management UI.
 
+docs/product-requirements/
+  Product requirement documents derived from strategy coverage feedback. `strategy-test-report-prd.md` is the scope for closing failed/uncovered rules; `strategy-test-report-delivery.md` is the concise delivery summary and manual-review boundary list.
+
 scripts/create_google_form.gs
   Legacy/backup Google Forms + Sheets helper. Current recommended flow is Cloudflare Worker + KV.
+
+scripts/generate_strategy_test_report.mjs
+  Local Node report generator for customer-facing strategy-document coverage feedback.
+
+scripts/strategy_test_mapping.json
+  Manual evidence map from strategy document clauses to pass/fail/uncovered/manual conclusions. Delivery reports should have zero failed and zero uncovered items.
 
 src/etf_tracker/
   Python package for config loading, market data, portfolio state, strategy evaluation, report rendering, encryption, and CLI.
 
 tests/
-  Pytest coverage for strategy behavior and trade payload parsing.
+  Pytest coverage for strategy behavior and trade payload parsing, plus Node tests for Worker API behavior.
+
+test-reports/
+  Local generated delivery reports, including `strategy-test-report.html`.
 ```
 
 Important generated/local files:
 
 - `config.json` is local/secret and ignored.
 - `docs/report.json` is generated and ignored locally; Actions publishes the generated version to `gh-pages`.
+- `test-reports/strategy-test-report.html` is generated locally for delivery testing feedback; regenerate it from the mapping file before sharing.
+- Fourth-phase strategy coverage archival requires `test-reports/strategy-test-report.html` to show `失败=0` and `未覆盖=0`; manual-review items must keep explicit evidence explaining why they are not automated.
+- `docs/product-requirements/strategy-test-report-delivery.md` is the short handoff for this strategy coverage repair: update it when the delivered logic, verification commands, report counts, or manual-review boundary changes.
 - `.venv/`, `.pytest_cache/`, `__pycache__/`, and original strategy docs are ignored.
 
 ## Run And Test Commands
@@ -61,6 +76,14 @@ Run tests:
 $env:PYTHONPATH='src'
 .\.venv\Scripts\python -m pytest
 ```
+
+If `.venv` reports `No Python`, verify the host interpreter path before treating Python verification as blocked. The local fallback interpreter may be available at:
+
+```powershell
+& 'C:\Users\berna\AppData\Local\Programs\Python\Python311\python.exe' -m pytest
+```
+
+Recreate `.venv` afterward if its stored absolute interpreter path is stale. In sandboxed sessions, running the host interpreter may require approval; do not mark Python tests as unverified until the fallback path has been tried or explicitly blocked.
 
 Generate a local encrypted report:
 
@@ -82,6 +105,24 @@ Check Worker JavaScript syntax:
 
 ```powershell
 node --check cloudflare-worker\worker.js
+```
+
+Run Worker API tests:
+
+```powershell
+node --test tests\worker.test.mjs
+```
+
+Run strategy test report generator tests:
+
+```powershell
+node --test tests\strategy_report_generator.test.mjs
+```
+
+Generate the local strategy-document testing feedback webpage:
+
+```powershell
+node scripts\generate_strategy_test_report.mjs
 ```
 
 Run only market data tests:
@@ -133,10 +174,22 @@ Never write actual secret values into tracked files.
 - Cloudflare Worker + KV is the preferred trade source. Google Sheets support remains only as a fallback.
 - Worker APIs are `POST /trade`, `GET /trades`, `POST /trades/manage`, `PUT /trade/:id`, `DELETE /trade/:id`, and `GET /health`.
 - Worker-triggered GitHub `repository_dispatch` refreshes the report after trade changes.
+- Trade records support both legacy `date` and audit fields: `signal_date`, `execution_date`, `trigger_rule`, `cash_balance`, `risk_gate_triggered`, and `risk_gate_snapshot`. When new dates are missing, legacy `date` is treated as both signal confirmation date and execution date.
 - Market data loading order is AKShare Eastmoney ETF history, Eastmoney public kline, then AKShare Sina ETF history.
 - Eastmoney market IDs are inferred from ETF code: `5/6/9` prefixes use Shanghai `1`, all others use Shenzhen `0`.
 - Sina ETF history uses `sh`/`sz` prefixed symbols and has no traded amount; amount is stored as `0`.
-- A500 grid parameters are generated in the strategy layer. With live 563360 holdings, the actual grid base is weighted bottom-position cost `(amount + fee) / shares`, falling back to current position average cost when no bottom-position buy is tagged. When current 563360 holdings are zero, the report shows suggested grid parameters only: base is the latest available 20-day closing-price average, upper/lower bounds are base price times `1.18` and `0.82`, and suggested dynamic spacing is `max(3%, min(5.5%, 0.8 * 20-day ATR / latest close))` with a 4% fallback.
+- Position invested cost excludes trade fees; fees remain separate and still affect cash balances. A500 grid parameters are generated in the strategy layer. With live 563360 holdings, the actual grid base is weighted bottom-position execution cost `(amount + fee) / shares`, falling back to current position average cost when no bottom-position buy is tagged. When current 563360 holdings are zero, the report shows suggested grid parameters only: base is the latest available 20-day closing-price average, upper/lower bounds are base price times `1.18` and `0.82`, and suggested dynamic spacing is `max(3%, min(5.5%, 0.8 * 20-day ATR / latest close))` with a 4% fallback.
+- A500 actual grid spacing defaults to 5.5% unless config overrides it after review. Ordinary grid buy/sell state is derived from trade `trigger_rule` text such as `A500第2格补仓`; missing or unclear old records are treated conservatively.
+- A500 reserve actions remain manual-review candidates. Strategy output distinguishes A/B/C reserve conditions, reserve interval, reserve position P/L, and loss/profit review boundaries, but still does not create orders.
+- KC50 buy stages are derived from recorded buys and configured `buy_steps`. The first-buy valuation cross check uses manual `valuation.kc50_percentile`; fourth-buy filtering also reads `valuation.kc50_pe_percentile` and `valuation.kc50_pb_percentile`.
+- KC50 H3 recovery, fixed profit-take, trailing profit, graded risk, and time review are all derived from trade history plus market bars; no separate persistent strategy-state file exists.
+- Phase-three lifecycle controls are also derived from existing trades and config, not a new state file. H6 uses `清仓` sells to enforce a 5-trading-day restart cooldown, then only emits a review-level probe buy up to 50% of the normal first buy while showing relocked base/high/grid/cash metrics. H7 reviews each buy on its 10th trading day and pauses that symbol after 3 consecutive still-loss buys.
+- Long-term risk controls read optional `account.locked_cash`, `account.peak_value`, `account.strategy_start_date`, `benchmarks.hs300_return`, and `benchmarks.money_fund_return`. Locked cash is included in total account value and reporting, but it is not added to trading cash pools or candidate sizing. A drawdown above 12% blocks all new buys; 6-month benchmark comparison remains a manual review prompt.
+- KC50 reserve recovery after H3 reads `reserve.kc50_recovery.confirmed/source/as_of/note/max_amount`. Missing manual confirmation waits for review; when confirmed, H3 recovery, reserve safety, and the one-tranche limit must all pass before a max-1000-yuan review candidate is shown.
+- S1 correlation limits and S2 volatility adaptation are report-level controls. S1 can downgrade same-day new-buy candidates by planned amount; S2 only changes the remaining-position trailing-profit drawdown threshold.
+- H1 total risk gate runs when total invested cost is at least 70% and below 85% of total capital. It requires both hard conditions to pass: total floating loss ratio below 10%, and A500/KC50 not both weak. It also requires at least two of three reference conditions: A500 valuation percentile pass, KC50 valuation percentile pass, and at least 10 trading days since the latest stop-loss/take-profit record.
+- Manual valuation for H1 is read from config fields such as `valuation.source`, `valuation.as_of`, `valuation.a500_percentile`, and `valuation.kc50_percentile`. Percentiles at or below 50% pass; missing source/date/value does not pass.
+- Reserve safety is evaluated from the `reserve` cash pool. Unrecovered reserve use over 2000 yuan or reserve cash below 1000 yuan triggers a warning and should block new reserve candidates.
 - Before the first 588000 buy is triggered, the report shows an INFO reminder with the estimated first-buy trigger close, calculated from the latest 252 closing-price high and the first configured `buy_steps` drawdown.
 
 ## Operational Notes
@@ -165,6 +218,7 @@ Never write actual secret values into tracked files.
 - `docs/index.html` is a single static page with built-in tabs for report, trade submit, and trade management. Keep existing form element IDs, `data-tab-target`/`data-tab-panel`, and `__ENCRYPTED_REPORT_JSON__` / `__WORKER_CONFIG_JSON__` placeholders stable because Actions and page JavaScript depend on them.
 - The trade submit UI uses segmented direction buttons backed by hidden `#trade-side`; keep submitted values exactly `买入` / `卖出`.
 - Client-side price/amount/share checks are advisory only. Do not make them block submission unless the Worker validation contract changes too.
+- Worker currently enforces KC50 buy compliance server-side: 100-share lots and per-step target amount. Non-compliant KC50 buys require a review note; with a note, Worker saves the factual trade and stores `compliance_warnings`.
 - If remembering the trade submit password in the page, keep it limited to browser `sessionStorage`; never persist it into generated reports, local files, KV, or tracked code.
 - Do not add automatic trading or broker integration.
 - Do not move sensitive state into the public repo.
@@ -172,5 +226,9 @@ Never write actual secret values into tracked files.
   - Worker normalization/storage
   - Pages submit/manage UI
   - Python trade parser/tests
+- Keep trade audit fields optional for old records, but preserve them end-to-end when present. Risk-gate overrides should include a review note or risk snapshot rather than relying only on the free-form note.
 - When changing report generation, run pytest and a local encrypted report generation command.
-- When changing Worker routes, run `node --check cloudflare-worker\worker.js` and test `/health` plus the relevant endpoint after deployment.
+- When changing Worker routes, run `node --check cloudflare-worker\worker.js`, `node --test tests\worker.test.mjs`, and test `/health` plus the relevant endpoint after deployment.
+- When changing strategy logic or tests, update `scripts/strategy_test_mapping.json`, run `node --test tests\strategy_report_generator.test.mjs`, and regenerate `test-reports/strategy-test-report.html` so customer-facing coverage feedback reflects current evidence.
+- When implementing failed or uncovered strategy-test-report items, use `docs/product-requirements/strategy-test-report-prd.md` as the product scope and keep its rule-ID traceability aligned with `scripts/strategy_test_mapping.json`.
+- When closing a strategy-test-report delivery pass, keep `docs/product-requirements/strategy-test-report-delivery.md` current and verify the generated HTML still reports `失败=0` and `未覆盖=0`.

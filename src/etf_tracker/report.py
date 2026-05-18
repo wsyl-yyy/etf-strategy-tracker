@@ -39,7 +39,7 @@ def render_markdown(strategy_report: StrategyReport, portfolio: PortfolioState) 
     if portfolio.positions:
         for symbol, position in portfolio.positions.items():
             lines.append(
-                f"- {symbol}：份额 {position.shares:.0f}，持仓成本 {position.cost:.2f}，均价 {position.avg_cost:.4f}"
+                f"- {symbol}：份额 {position.shares:.0f}，已投入成本 {position.cost:.2f}，均价 {position.avg_cost:.4f}"
             )
     else:
         lines.append("- 暂无持仓记录。")
@@ -48,12 +48,22 @@ def render_markdown(strategy_report: StrategyReport, portfolio: PortfolioState) 
     recent_trades = portfolio.trades[-5:]
     if recent_trades:
         for trade in recent_trades:
+            audit_parts = [f"模块：{trade.module}", f"交易费用：{trade.fee:.2f}"]
+            if trade.trigger_rule:
+                audit_parts.append(f"触发规则：{trade.trigger_rule}")
+            if trade.cash_balance is not None:
+                audit_parts.append(f"现金余额：{trade.cash_balance:.2f}")
+            if trade.risk_gate_triggered:
+                audit_parts.append("已触发风险闸门")
+            if trade.risk_gate_snapshot:
+                audit_parts.append(f"闸门快照：{trade.risk_gate_snapshot}")
+            if trade.compliance_warnings:
+                audit_parts.append(f"合规警告：{'；'.join(trade.compliance_warnings)}")
             lines.append(
-                f"- {trade.date} {trade.symbol} {trade.side} {trade.amount:.2f}元 "
-                f"@ {trade.price:.4f}，份额 {trade.shares:.0f}，模块：{trade.module}"
+                f"- 信号日 {trade.signal_date} / 执行日 {trade.execution_date}，{trade.symbol} {trade.side} "
+                f"{trade.amount:.2f}元 @ {trade.price:.4f}，份额 {trade.shares:.0f}，{'；'.join(audit_parts)}"
             )
     else:
         lines.append("- 暂无成交记录。")
 
     return "\n".join(lines) + "\n"
-

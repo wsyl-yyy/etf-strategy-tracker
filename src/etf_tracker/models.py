@@ -26,6 +26,19 @@ class Trade:
     shares: float
     fee: float = 0.0
     note: str = ""
+    signal_date: date | None = None
+    execution_date: date | None = None
+    trigger_rule: str = ""
+    cash_balance: float | None = None
+    risk_gate_triggered: bool = False
+    risk_gate_snapshot: str = ""
+    compliance_warnings: list[str] = field(default_factory=list)
+
+    def __post_init__(self) -> None:
+        if self.signal_date is None:
+            object.__setattr__(self, "signal_date", self.date)
+        if self.execution_date is None:
+            object.__setattr__(self, "execution_date", self.date)
 
     @property
     def is_buy(self) -> bool:
@@ -52,7 +65,7 @@ class Position:
     def apply(self, trade: Trade) -> None:
         if trade.is_buy:
             self.shares += trade.shares
-            self.cost += trade.amount + trade.fee
+            self.cost += trade.amount
             return
 
         if trade.is_sell:
@@ -75,4 +88,3 @@ class PortfolioState:
         if symbol not in self.positions:
             self.positions[symbol] = Position(symbol=symbol)
         return self.positions[symbol]
-

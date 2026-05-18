@@ -37,6 +37,11 @@ jobs:
           PYTHONPATH: src
         run: python -m pytest
 
+      - name: Check Worker
+        run: |
+          node --check cloudflare-worker/worker.js
+          node --test tests/worker.test.mjs
+
       - name: Prepare config
         env:
           CONFIG_JSON: ${{ secrets.CONFIG_JSON }}

@@ -1,0 +1,4493 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>策略逐条测试反馈</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --bg: #f4f6f8;
+        --panel: #ffffff;
+        --text: #17202a;
+        --muted: #65717f;
+        --line: #d9e1ea;
+        --pass: #047857;
+        --fail: #b91c1c;
+        --uncovered: #b45309;
+        --manual: #2563eb;
+        --blocked: #6b7280;
+        --soft-pass: #ecfdf5;
+        --soft-fail: #fef2f2;
+        --soft-uncovered: #fffbeb;
+        --soft-manual: #eff6ff;
+        --soft-blocked: #f3f4f6;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--text);
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        line-height: 1.55;
+      }
+      main {
+        max-width: 1180px;
+        margin: 0 auto;
+        padding: 28px 16px 52px;
+      }
+      header, section {
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        padding: 18px;
+        margin-bottom: 14px;
+      }
+      h1, h2, h3 { margin: 0; line-height: 1.25; }
+      h1 { font-size: 28px; }
+      h2 { font-size: 20px; margin-bottom: 12px; }
+      h3 { font-size: 17px; margin: 18px 0 10px; }
+      p { margin: 8px 0 0; }
+      .muted { color: var(--muted); font-size: 14px; }
+      .summary-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        gap: 10px;
+      }
+      .summary-card {
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        padding: 13px;
+      }
+      .summary-card strong { display: block; font-size: 26px; }
+      .filters {
+        display: grid;
+        grid-template-columns: minmax(200px, 1fr) minmax(220px, 1fr);
+        gap: 12px;
+      }
+      select, input {
+        width: 100%;
+        border: 1px solid var(--line);
+        border-radius: 7px;
+        color: var(--text);
+        font: inherit;
+        padding: 10px 11px;
+      }
+      .status-tabs {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-top: 12px;
+      }
+      .status-tabs button {
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        background: #fff;
+        color: var(--text);
+        cursor: pointer;
+        font: inherit;
+        padding: 8px 12px;
+      }
+      .status-tabs button[aria-pressed="true"] {
+        border-color: #0f766e;
+        background: #0f766e;
+        color: #fff;
+      }
+      .command-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+        gap: 10px;
+      }
+      .command-card, .item-card {
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #fff;
+        padding: 12px;
+      }
+      .command-card { background: #fbfcfd; }
+      .command-card code, .evidence code {
+        white-space: normal;
+        overflow-wrap: anywhere;
+      }
+      .section-title {
+        border-top: 1px solid var(--line);
+        color: var(--muted);
+        font-size: 13px;
+        font-weight: 750;
+        margin-top: 18px;
+        padding-top: 16px;
+      }
+      .item-list {
+        display: grid;
+        gap: 10px;
+      }
+      .item-card {
+        display: grid;
+        grid-template-columns: 168px minmax(0, 1fr);
+        gap: 12px;
+      }
+      .item-meta {
+        color: var(--muted);
+        font-size: 13px;
+      }
+      .item-text {
+        font-size: 15px;
+        overflow-wrap: anywhere;
+      }
+      .badge {
+        display: inline-flex;
+        border-radius: 999px;
+        font-size: 12px;
+        font-weight: 800;
+        line-height: 1;
+        margin-bottom: 8px;
+        padding: 6px 8px;
+      }
+      .badge.pass { background: var(--soft-pass); color: var(--pass); }
+      .badge.fail { background: var(--soft-fail); color: var(--fail); }
+      .badge.uncovered { background: var(--soft-uncovered); color: var(--uncovered); }
+      .badge.manual { background: var(--soft-manual); color: var(--manual); }
+      .badge.blocked { background: var(--soft-blocked); color: var(--blocked); }
+      .evidence {
+        color: var(--muted);
+        font-size: 13px;
+        margin: 8px 0 0;
+        padding-left: 18px;
+      }
+      .note {
+        border-left: 3px solid var(--line);
+        color: var(--muted);
+        font-size: 13px;
+        margin-top: 8px;
+        padding-left: 10px;
+      }
+      .attention-list {
+        display: grid;
+        gap: 8px;
+        margin: 0;
+        padding-left: 18px;
+      }
+      .attention-list li { padding-left: 2px; }
+      .hidden { display: none !important; }
+      @media (max-width: 720px) {
+        .filters, .item-card {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header>
+        <h1>策略逐条测试反馈</h1>
+        <p class="muted">来源：ETF量化交易策略 V3.2 正式执行版.md · 生成时间：2026-05-18 23:00:02</p>
+        <p class="muted">判定口径：通过=已有实现和自动化测试；失败=实现缺失或与策略不一致；未覆盖=缺少足够测试证据；需人工复核/不适用=策略明确依赖人工确认或外部材料。</p>
+      </header>
+
+      <section>
+        <h2>汇总页</h2>
+        <div class="summary-grid">
+          <div class="summary-card"><span class="badge blocked">全部条目</span><strong>298</strong></div>
+          <div class="summary-card"><span class="badge pass">通过</span><strong>212</strong></div>
+          <div class="summary-card"><span class="badge fail">失败</span><strong>0</strong></div>
+          <div class="summary-card"><span class="badge uncovered">未覆盖</span><strong>0</strong></div>
+          <div class="summary-card"><span class="badge manual">需人工复核/不适用</span><strong>86</strong></div>
+        </div>
+      </section>
+
+      <section>
+        <h2>测试执行基线</h2>
+        <div class="command-grid">
+          <div class="command-card">
+    <span class="badge pass">通过</span>
+    <h3>Python 策略测试</h3>
+    <p><code>C:\Users\berna\AppData\Local\Programs\Python\Python311\python.exe -m pytest</code></p>
+    <p class="muted">本次验证 65 个 Python 测试全部通过，覆盖策略评估、资金池、指标、成交解析和日报渲染。若本地 .venv 报 No Python，可使用该 Python 3.11 路径复验。</p>
+  </div>
+<div class="command-card">
+    <span class="badge pass">通过</span>
+    <h3>Worker 语法检查</h3>
+    <p><code>node --check cloudflare-worker\worker.js</code></p>
+    <p class="muted">本次验证 node --check cloudflare-worker\worker.js 退出码为 0。</p>
+  </div>
+<div class="command-card">
+    <span class="badge pass">通过</span>
+    <h3>Worker API 测试</h3>
+    <p><code>node --test tests\worker.test.mjs</code></p>
+    <p class="muted">本次验证 7 个 Worker 测试全部通过，覆盖成交 CRUD、审计字段、科创50合规警告、旧字段兼容和权限。</p>
+  </div>
+<div class="command-card">
+    <span class="badge pass">通过</span>
+    <h3>策略报告生成器测试</h3>
+    <p><code>node --test tests\strategy_report_generator.test.mjs</code></p>
+    <p class="muted">本次验证 3 个策略报告生成器测试全部通过，覆盖映射汇总、真实策略文档 fail/uncovered 归零门禁和空清单展示。</p>
+  </div>
+        </div>
+      </section>
+
+      <section>
+        <h2>失败与未覆盖清单</h2>
+        <ul class="attention-list">
+          <li>暂无失败或未覆盖项。</li>
+        </ul>
+      </section>
+
+      <section>
+        <h2>策略逐条测试报告</h2>
+        <div class="filters">
+          <label>
+            <span class="muted">章节筛选</span>
+            <select id="section-filter">
+              <option value="">全部章节</option>
+              <option value="文档元信息">文档元信息</option>
+<option value="一、核心定义">一、核心定义</option>
+<option value="二、资金分层">二、资金分层</option>
+<option value="三、第一层：硬规则">三、第一层：硬规则</option>
+<option value="四、总风险闸门">四、总风险闸门</option>
+<option value="五、第二层：标准流程">五、第二层：标准流程</option>
+<option value="六、A500策略模块">六、A500策略模块</option>
+<option value="七、A500备用金规则">七、A500备用金规则</option>
+<option value="八、科创50策略模块">八、科创50策略模块</option>
+<option value="九、科创50备用金回暖规则">九、科创50备用金回暖规则</option>
+<option value="十、第三层：参考指引与复核频率">十、第三层：参考指引与复核频率</option>
+<option value="十一、策略暂停、失效与重启">十一、策略暂停、失效与重启</option>
+<option value="十二、执行记录表">十二、执行记录表</option>
+<option value="十三、季度复核清单">十三、季度复核清单</option>
+<option value="十四、执行前设置与成本附录">十四、执行前设置与成本附录</option>
+<option value="十五、最终执行摘要">十五、最终执行摘要</option>
+            </select>
+          </label>
+          <label>
+            <span class="muted">关键词搜索</span>
+            <input id="search-filter" type="search" placeholder="输入规则编号、关键词或证据" />
+          </label>
+        </div>
+        <div class="status-tabs" aria-label="测试状态筛选">
+          <button type="button" data-status-filter="" aria-pressed="true">全部</button>
+          <button type="button" data-status-filter="pass" aria-pressed="false">通过</button>
+          <button type="button" data-status-filter="fail" aria-pressed="false">失败</button>
+          <button type="button" data-status-filter="uncovered" aria-pressed="false">未覆盖</button>
+          <button type="button" data-status-filter="manual" aria-pressed="false">需人工复核/不适用</button>
+        </div>
+        <div class="item-list" id="item-list">
+          <div class="section-title">文档元信息</div>
+<article class="item-card" data-item-card data-section="文档元信息" data-status="manual">
+    <div class="item-meta">
+      <span class="badge manual">需人工复核/不适用</span>
+      <div>T001 · 第 3 行</div>
+      <div>paragraph</div>
+      
+      <div>映射：DOC-META</div>
+    </div>
+    <div>
+      <div class="item-text">版本：V3.2 正式执行版</div>
+      <ul class="evidence"><li>文档标题、版本、日期和风险提示属于交付说明，不属于程序行为。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="文档元信息" data-status="manual">
+    <div class="item-meta">
+      <span class="badge manual">需人工复核/不适用</span>
+      <div>T002 · 第 5 行</div>
+      <div>paragraph</div>
+      
+      <div>映射：DOC-META</div>
+    </div>
+    <div>
+      <div class="item-text">日期：2026 年 5 月 10 日</div>
+      <ul class="evidence"><li>文档标题、版本、日期和风险提示属于交付说明，不属于程序行为。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="文档元信息" data-status="manual">
+    <div class="item-meta">
+      <span class="badge manual">需人工复核/不适用</span>
+      <div>T003 · 第 7 行</div>
+      <div>paragraph</div>
+      
+      <div>映射：DOC-META</div>
+    </div>
+    <div>
+      <div class="item-text">适用资金：10000 元</div>
+      <ul class="evidence"><li>文档标题、版本、日期和风险提示属于交付说明，不属于程序行为。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="文档元信息" data-status="manual">
+    <div class="item-meta">
+      <span class="badge manual">需人工复核/不适用</span>
+      <div>T004 · 第 9 行</div>
+      <div>paragraph</div>
+      
+      <div>映射：DOC-META</div>
+    </div>
+    <div>
+      <div class="item-text">本文件用于执行和复盘华泰柏瑞中证A500ETF（563360）网格交易与华夏上证科创板50成份ETF（588000）波段交易。所有规则以“资金分层、信号清晰、仓位可控、复盘可查”为原则。本策略为个人交易规则整理，不构成投资收益承诺或投资建议。</div>
+      <ul class="evidence"><li>文档标题、版本、日期和风险提示属于交付说明，不属于程序行为。</li></ul>
+      
+    </div>
+  </article>
+<div class="section-title">一、核心定义</div>
+<article class="item-card" data-item-card data-section="一、核心定义" data-status="pass">
+    <div class="item-meta">
+      <span class="badge pass">通过</span>
+      <div>T005 · 第 15 行</div>
+      <div>table-row</div>
+      
+      <div>映射：CAPITAL-10000</div>
+    </div>
+    <div>
+      <div class="item-text">总资金 | 本策略初始规划资金 10000 元。</div>
+      <ul class="evidence"><li>config.example.json 配置 total_capital=10000。</li><li>tests/test_strategy.py 的配置夹具按 10000 元构造。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="一、核心定义" data-status="pass">
+    <div class="item-meta">
+      <span class="badge pass">通过</span>
+      <div>T006 · 第 16 行</div>
+      <div>table-row</div>
+      
+      <div>映射：INVESTED-COST-FEE-MISMATCH</div>
+    </div>
+    <div>
+      <div class="item-text">已投入成本 | 已实际买入 ETF 的累计成本金额，按成交金额计算，不随市值波动下调。</div>
+      <ul class="evidence"><li>src/etf_tracker/models.py 的 Position.apply 已按成交金额累计投入成本，不再把交易费用计入 cost。</li><li>tests/test_accounting.py 覆盖买入金额1000、费用1时投入成本仍为1000，现金扣减包含费用。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="一、核心定义" data-status="pass">
+    <div class="item-meta">
+      <span class="badge pass">通过</span>
+      <div>T007 · 第 17 行</div>
+      <div>table-row</div>
+      
+      <div>映射：FLOATING-LOSS-RATIO</div>
+    </div>
+    <div>
+      <div class="item-text">总持仓浮亏比例 | 当前全部 ETF 持仓浮亏金额 ÷ 当前全部 ETF 已投入成本。</div>
+      <ul class="evidence"><li>src/etf_tracker/strategy.py 已按 max(0, 投入成本-当前市值)/投入成本 输出非负浮亏比例。</li><li>tests/test_strategy.py 覆盖亏损10%和盈利时0%两种口径。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="一、核心定义" data-status="pass">
+    <div class="item-meta">
+      <span class="badge pass">通过</span>
+      <div>T008 · 第 18 行</div>
+      <div>table-row</div>
+      
+      <div>映射：PHASE4-001-PROFIT-LOCK</div>
+    </div>
+    <div>
+      <div class="item-text">总账户最大回撤 | （账户历史最高净值 - 当前净值）÷ 账户历史最高净值。账户净值 = 全部ETF持仓市值 + 全部资金池现金余额，含不可交易现金池。</div>
+      <ul class="evidence"><li>src/etf_tracker/strategy.py 将 locked_cash 计入账户价值但排除在交易资金池外，并在累计收益达15%时提示收益锁定。</li><li>tests/test_phase_three_strategy.py 覆盖不可交易现金池展示、收益锁定建议金额和资金池隔离。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="一、核心定义" data-status="pass">
+    <div class="item-meta">
+      <span class="badge pass">通过</span>
+      <div>T009 · 第 19 行</div>
+      <div>table-row</div>
+      
+      <div>映射：A500-BASE-PRICE</div>
+    </div>
+    <div>
+      <div class="item-text">A500网格基准价 | A500 初始底仓的实际成交均价。</div>
+      <ul class="evidence"><li>src/etf_tracker/strategy.py 使用 A500 底仓买入均价生成实际网格基准。</li><li>tests/test_strategy.py 覆盖底仓成交均价、底仓优先和当前持仓均价回退。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="一、核心定义" data-status="manual">
+    <div class="item-meta">
+      <span class="badge manual">需人工复核/不适用</span>
+      <div>T010 · 第 20 行</div>
+      <div>table-row</div>
+      
+      <div>映射：PHASE4-002-MANUAL-REVIEW-BOUNDARY</div>
+    </div>
+    <div>
+      <div class="item-text">网格下沿 | 每季度复核确定的 A500 估值低位价格。跌破后暂停普通网格补仓。</div>
+      <ul class="evidence"><li>季度复核、估值平台选择、截图存档、策略有效性最终判断和跨池例外属于人工复核边界，系统只展示证据和提醒。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="一、核心定义" data-status="manual">
+    <div class="item-meta">
+      <span class="badge manual">需人工复核/不适用</span>
+      <div>T011 · 第 21 行</div>
+      <div>table-row</div>
+      
+      <div>映射：PHASE4-003-MANUAL-REVIEW-BOUNDARY</div>
+    </div>
+    <div>
+      <div class="item-text">网格上沿 | 每季度复核确定的 A500 估值高位价格。未填入具体价格前，不设置底仓清仓条件单。</div>
+      <ul class="evidence"><li>季度复核、估值平台选择、截图存档、策略有效性最终判断和跨池例外属于人工复核边界，系统只展示证据和提醒。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="一、核心定义" data-status="pass">
+    <div class="item-meta">
+      <span class="badge pass">通过</span>
+      <div>T012 · 第 22 行</div>
+      <div>table-row</div>
+      
+      <div>映射：NEW-LOW</div>
+    </div>
+    <div>
+      <div class="item-text">20日新低 | 当日收盘价低于此前20个交易日（不含当日）的最低收盘价。均以交易日和收盘价计算，不使用自然日或盘中最低价。</div>
+      <ul class="evidence"><li>src/etf_tracker/indicators.py 实现 is_20_day_new_low。</li><li>tests/test_indicators.py 覆盖低于前20日低点触发、等于前低不触发。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="一、核心定义" data-status="pass">
+    <div class="item-meta">
+      <span class="badge pass">通过</span>
+      <div>T013 · 第 23 行</div>
+      <div>table-row</div>
+      
+      <div>映射：CORRELATION</div>
+    </div>
+    <div>
+      <div class="item-text">20日收益相关系数 | A500与科创50过去20个交易日每日涨跌幅的皮尔逊相关系数，用于判断双标的同步风险。</div>
+      <ul class="evidence"><li>src/etf_tracker/indicators.py 实现 correlation，src/etf_tracker/strategy.py 输出20日收益相关系数。</li><li>tests/test_indicators.py 覆盖20日收益相关系数计算。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="一、核心定义" data-status="pass">
+    <div class="item-meta">
+      <span class="badge pass">通过</span>
+      <div>T014 · 第 24 行</div>
+      <div>table-row</div>
+      
+      <div>映射：VOLATILITY</div>
+    </div>
+    <div>
+      <div class="item-text">20日年化波动率 | 过去20个交易日每日涨跌幅标准差 × √252，用于判断科创50移动止盈参数是否需要放宽。</div>
+      <ul class="evidence"><li>src/etf_tracker/indicators.py 实现 annualized_volatility，src/etf_tracker/strategy.py 输出科创50 20日年化波动率。</li><li>tests/test_indicators.py 覆盖20日年化波动率计算。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="一、核心定义" data-status="pass">
+    <div class="item-meta">
+      <span class="badge pass">通过</span>
+      <div>T015 · 第 25 行</div>
+      <div>table-row</div>
+      
+      <div>映射：PHASE4-004-KC50-BUY-STEPS</div>
+    </div>
+    <div>
+      <div class="item-text">本轮科创50波段 | 从第一笔买入信号触发日起，至全部科创50仓位清零（含止盈清完、止损清仓或风控减仓清完）之日止。</div>
+      <ul class="evidence"><li>src/etf_tracker/strategy.py 使用近252日高点回撤、已买金额、估值和第4笔过滤条件推导科创50四笔买入候选。</li><li>tests/test_strategy.py 与 tests/test_phase_two_strategy.py 覆盖第一笔触发、第二/第三笔、估值延后、第4笔过滤和买入阶段推进。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="一、核心定义" data-status="pass">
+    <div class="item-meta">
+      <span class="badge pass">通过</span>
+      <div>T016 · 第 26 行</div>
+      <div>table-row</div>
+      
+      <div>映射：KC50-VALUATION-CROSS</div>
+    </div>
+    <div>
+      <div class="item-text">科创50阶段高点 | 第一笔买入信号触发当日，向前回看 12 个月收盘价的最高值。本轮波段全程锁定不变；若该高点来自短期极端冲高，不直接剔除，但必须使用估值交叉验证控制买入节奏。</div>
+      <ul class="evidence"><li>src/etf_tracker/strategy.py 使用手工估值分位判断第一笔22%触发时是否延后，并允许25%回撤重新触发。</li><li>tests/test_phase_two_strategy.py 覆盖估值高于50%延后和更深回撤触发。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="一、核心定义" data-status="pass">
+    <div class="item-meta">
+      <span class="badge pass">通过</span>
+      <div>T017 · 第 27 行</div>
+      <div>table-row</div>
+      
+      <div>映射：PHASE4-005-KC50-BUY-STEPS</div>
+    </div>
+    <div>
+      <div class="item-text">科创50综合持仓成本 | 本轮科创50实际已成交买入总金额 ÷ 当前持有总份额。止盈触发所用成本，以首次止盈前的综合持仓成本为准，后续不因部分卖出而变化。</div>
+      <ul class="evidence"><li>src/etf_tracker/strategy.py 使用近252日高点回撤、已买金额、估值和第4笔过滤条件推导科创50四笔买入候选。</li><li>tests/test_strategy.py 与 tests/test_phase_two_strategy.py 覆盖第一笔触发、第二/第三笔、估值延后、第4笔过滤和买入阶段推进。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="一、核心定义" data-status="pass">
+    <div class="item-meta">
+      <span class="badge pass">通过</span>
+      <div>T018 · 第 28 行</div>
+      <div>table-row</div>
+      
+      <div>映射：PHASE4-006-FUNDS-POOLS</div>
+    </div>
+    <div>
+      <div class="item-text">科创50波段现金余额 | 科创50波段池初始金额2000元，减去已成交买入金额，加上已成交卖出回收金额。不含全局备用金。</div>
+      <ul class="evidence"><li>src/etf_tracker/portfolio.py 按 a500_grid、kc50_wave、reserve 分池计算现金余额和卖出回池。</li><li>tests/test_accounting.py 覆盖资金池初始余额、卖出回池和备用金独立归属。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="一、核心定义" data-status="pass">
+    <div class="item-meta">
+      <span class="badge pass">通过</span>
+      <div>T019 · 第 29 行</div>
+      <div>table-row</div>
+      
+      <div>映射：PHASE4-007-FUNDS-POOLS</div>
+    </div>
+    <div>
+      <div class="item-text">科创50波段账户净值 | 科创50持仓市值 + 科创50波段现金余额，不包含全局备用金。</div>
+      <ul class="evidence"><li>src/etf_tracker/portfolio.py 按 a500_grid、kc50_wave、reserve 分池计算现金余额和卖出回池。</li><li>tests/test_accounting.py 覆盖资金池初始余额、卖出回池和备用金独立归属。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="一、核心定义" data-status="pass">
+    <div class="item-meta">
+      <span class="badge pass">通过</span>
+      <div>T020 · 第 30 行</div>
+      <div>table-row</div>
+      
+      <div>映射：PHASE4-008-INDICATORS</div>
+    </div>
+    <div>
+      <div class="item-text">20日均线下行 | 当日20日均线值低于前一交易日20日均线值。</div>
+      <ul class="evidence"><li>src/etf_tracker/indicators.py 实现 20日均线、20日新低、相关系数和年化波动率等日线指标。</li><li>tests/test_indicators.py 覆盖 20日新低、相关系数和年化波动率；策略测试覆盖均线趋势判定。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="一、核心定义" data-status="pass">
+    <div class="item-meta">
+      <span class="badge pass">通过</span>
+      <div>T021 · 第 31 行</div>
+      <div>table-row</div>
+      
+      <div>映射：PHASE4-009-INDICATORS</div>
+    </div>
+    <div>
+      <div class="item-text">20日均线拐头向上 | 当日20日均线值高于前一交易日20日均线值。</div>
+      <ul class="evidence"><li>src/etf_tracker/indicators.py 实现 20日均线、20日新低、相关系数和年化波动率等日线指标。</li><li>tests/test_indicators.py 覆盖 20日新低、相关系数和年化波动率；策略测试覆盖均线趋势判定。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="一、核心定义" data-status="pass">
+    <div class="item-meta">
+      <span class="badge pass">通过</span>
+      <div>T022 · 第 32 行</div>
+      <div>table-row</div>
+      
+      <div>映射：PHASE4-010-LIFECYCLE-LONG-TERM-RISK</div>
+    </div>
+    <div>
+      <div class="item-text">单标的连续3笔浮亏 | 单标的连续3笔新增买入，每笔在买入后的第10个交易日收盘时仍为浮亏，且复核当日3笔全部仍为浮亏。</div>
+      <ul class="evidence"><li>src/etf_tracker/strategy.py 从成交记录和行情推导 H6 清仓冷却、重启试探仓、H7 连续3笔10日浮亏和长期失效状态。</li><li>tests/test_phase_three_strategy.py 覆盖 H6 第4/第5交易日、重锁指标、试探仓上限、H7、最大回撤、H3轮次和 A500 网格90日空转。</li></ul>
+      
+    </div>
+  </article>
+<div class="section-title">二、资金分层</div>
+<article class="item-card" data-item-card data-section="二、资金分层" data-status="pass">
+    <div class="item-meta">
+      <span class="badge pass">通过</span>
+      <div>T023 · 第 38 行</div>
+      <div>table-row</div>
+      
+      <div>映射：PHASE4-011-A500-GRID-ARCHIVE</div>
+    </div>
+    <div>
+      <div class="item-text">A500常规网格池 | 5000 元 | 仅用于 A500 底仓、常规网格和A500池内机动安排。</div>
+      <ul class="evidence"><li>src/etf_tracker/strategy.py 输出 A500 实际/建议网格基准、上下沿、间距、开放网格和跌破下沿暂停。</li><li>tests/test_strategy.py 与 tests/test_phase_two_strategy.py 覆盖 A500 基准、5.5% 间距、普通补仓、配对卖出、下沿暂停和上沿提醒。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="二、资金分层" data-status="pass">
+    <div class="item-meta">
+      <span class="badge pass">通过</span>
+      <div>T024 · 第 39 行</div>
+      <div>table-row</div>
+      
+      <div>映射：PHASE4-012-FUNDS-POOLS</div>
+    </div>
+    <div>
+      <div class="item-text">科创50波段池 | 2000 元 | 仅用于科创50分批买入、止盈、止损和风控。</div>
+      <ul class="evidence"><li>src/etf_tracker/portfolio.py 按 a500_grid、kc50_wave、reserve 分池计算现金余额和卖出回池。</li><li>tests/test_accounting.py 覆盖资金池初始余额、卖出回池和备用金独立归属。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="二、资金分层" data-status="pass">
+    <div class="item-meta">
+      <span class="badge pass">通过</span>
+      <div>T025 · 第 40 行</div>
+      <div>table-row</div>
+      
+      <div>映射：PHASE4-013-FUNDS-POOLS</div>
+    </div>
+    <div>
+      <div class="item-text">全局备用金 | 3000 元 | 分为3份，每份1000元。只在极端条件和人工复核后使用，不参与自动交易。</div>
+      <ul class="evidence"><li>src/etf_tracker/portfolio.py 按 a500_grid、kc50_wave、reserve 分池计算现金余额和卖出回池。</li><li>tests/test_accounting.py 覆盖资金池初始余额、卖出回池和备用金独立归属。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="二、资金分层" data-status="pass">
+    <div class="item-meta">
+      <span class="badge pass">通过</span>
+      <div>T026 · 第 42 行</div>
+      <div>paragraph</div>
+      
+      <div>映射：PHASE4-014-FUNDS-POOLS</div>
+    </div>
+    <div>
+      <div class="item-text">执行原则：</div>
+      <ul class="evidence"><li>src/etf_tracker/portfolio.py 按 a500_grid、kc50_wave、reserve 分池计算现金余额和卖出回池。</li><li>tests/test_accounting.py 覆盖资金池初始余额、卖出回池和备用金独立归属。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="二、资金分层" data-status="pass">
+    <div class="item-meta">
+      <span class="badge pass">通过</span>
+      <div>T027 · 第 44 行</div>
+      <div>bullet</div>
+      
+      <div>映射：POOL-INDEPENDENCE</div>
+    </div>
+    <div>
+      <div class="item-text">三个资金池相互独立，未经复盘确认，不跨池调拨。</div>
+      <ul class="evidence"><li>src/etf_tracker/portfolio.py 按标的和模块归属资金池，A500、科创50、备用金互不静默调拨。</li><li>tests/test_accounting.py 覆盖科创50卖出只回到 kc50_wave、A500备用金交易只动用 reserve。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="二、资金分层" data-status="pass">
+    <div class="item-meta">
+      <span class="badge pass">通过</span>
+      <div>T028 · 第 45 行</div>
+      <div>bullet</div>
+      
+      <div>映射：POOL-INDEPENDENCE</div>
+    </div>
+    <div>
+      <div class="item-text">A500常规网格利润只回到A500常规网格池。</div>
+      <ul class="evidence"><li>src/etf_tracker/portfolio.py 按标的和模块归属资金池，A500、科创50、备用金互不静默调拨。</li><li>tests/test_accounting.py 覆盖科创50卖出只回到 kc50_wave、A500备用金交易只动用 reserve。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="二、资金分层" data-status="pass">
+    <div class="item-meta">
+      <span class="badge pass">通过</span>
+      <div>T029 · 第 46 行</div>
+      <div>bullet</div>
+      
+      <div>映射：POOL-INDEPENDENCE</div>
+    </div>
+    <div>
+      <div class="item-text">科创50卖出或减仓资金只回到科创50波段现金余额。</div>
+      <ul class="evidence"><li>src/etf_tracker/portfolio.py 按标的和模块归属资金池，A500、科创50、备用金互不静默调拨。</li><li>tests/test_accounting.py 覆盖科创50卖出只回到 kc50_wave、A500备用金交易只动用 reserve。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="二、资金分层" data-status="pass">
+    <div class="item-meta">
+      <span class="badge pass">通过</span>
+      <div>T030 · 第 47 行</div>
+      <div>bullet</div>
+      
+      <div>映射：PHASE4-015-FUNDS-POOLS</div>
+    </div>
+    <div>
+      <div class="item-text">全局备用金不自动补仓，备用金仓位单独记录、单独止盈、单独复核，不混入普通网格。</div>
+      <ul class="evidence"><li>src/etf_tracker/portfolio.py 按 a500_grid、kc50_wave、reserve 分池计算现金余额和卖出回池。</li><li>tests/test_accounting.py 覆盖资金池初始余额、卖出回池和备用金独立归属。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="二、资金分层" data-status="pass">
+    <div class="item-meta">
+      <span class="badge pass">通过</span>
+      <div>T031 · 第 48 行</div>
+      <div>bullet</div>
+      
+      <div>映射：RESERVE-SAFETY-CUSHION</div>
+    </div>
+    <div>
+      <div class="item-text">至少保留1000元心理安全垫，不参与任何自动交易。</div>
+      <ul class="evidence"><li>src/etf_tracker/strategy.py 输出备用金未回收动用和安全垫状态，超过2000元或低于1000元时给出 WARN。</li><li>tests/test_strategy.py 覆盖备用金安全垫不足时阻断提醒。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="二、资金分层" data-status="pass">
+    <div class="item-meta">
+      <span class="badge pass">通过</span>
+      <div>T032 · 第 49 行</div>
+      <div>bullet</div>
+      
+      <div>映射：RESERVE-SAFETY-CUSHION</div>
+    </div>
+    <div>
+      <div class="item-text">全局备用金3份中，任一时点未回收动用金额最多2000元；A500最多动用2份，科创50最多动用1份。无论如何分配，至少保留1份（1000元）作为心理安全垫。若需突破此分配，必须在季度复核中经人工确认后调整。</div>
+      <ul class="evidence"><li>src/etf_tracker/strategy.py 输出备用金未回收动用和安全垫状态，超过2000元或低于1000元时给出 WARN。</li><li>tests/test_strategy.py 覆盖备用金安全垫不足时阻断提醒。</li></ul>
+      
+    </div>
+  </article>
+<div class="section-title">三、第一层：硬规则</div>
+<article class="item-card" data-item-card data-section="三、第一层：硬规则" data-status="pass">
+    <div class="item-meta">
+      <span class="badge pass">通过</span>
+      <div>T033 · 第 53 行</div>
+      <div>paragraph</div>
+      
+      <div>映射：PHASE4-016-TRADE-RECORD-MISSING</div>
+    </div>
+    <div>
+      <div class="item-text">硬规则必须机械执行，不允许临场例外。</div>
+      <ul class="evidence"><li>Trade 模型、Python 解析器、Worker normalization 和 docs/index.html 已支持 signal_date、execution_date、trigger_rule、cash_balance、risk_gate_triggered、risk_gate_snapshot。</li><li>tests/test_trades.py、tests/worker.test.mjs 和 tests/test_report.py 覆盖新旧成交字段兼容、保存、展示和合规警告。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="三、第一层：硬规则" data-status="pass">
+    <div class="item-meta">
+      <span class="badge pass">通过</span>
+      <div>T034 · 第 57 行</div>
+      <div>table-row</div>
+      
+      <div>映射：H1-RISK-GATE</div>
+    </div>
+    <div>
+      <div class="item-text">H1 | 总投入成本达到总资金70%后 | 新增买入必须通过总风险闸门。</div>
+      <ul class="evidence"><li>src/etf_tracker/strategy.py 在70%-85%投入区间生成总风险闸门结论，并把未通过时的新增买入候选转为禁止。</li><li>tests/test_strategy.py 覆盖闸门通过、参考条件不足和候选买入被阻断。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="三、第一层：硬规则" data-status="pass">
+    <div class="item-meta">
+      <span class="badge pass">通过</span>
+      <div>T035 · 第 58 行</div>
+      <div>table-row</div>
+      
+      <div>映射：H2-85-BLOCK</div>
+    </div>
+    <div>
+      <div class="item-text">H2 | 总投入成本达到总资金85%后 | 无论风险闸门是否通过，均不得新增买入，只允许止盈、减仓、复核和记录。</div>
+      <ul class="evidence"><li>src/etf_tracker/strategy.py 在总投入成本达到85%时输出禁止新增买入，并将已有买入候选改为禁止提示。</li><li>tests/test_strategy.py 覆盖85%绝对上限和候选买入阻断。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="三、第一层：硬规则" data-status="pass">
+    <div class="item-meta">
+      <span class="badge pass">通过</span>
+      <div>T036 · 第 59 行</div>
+      <div>table-row</div>
+      
+      <div>映射：H3-NET-VALUE</div>
+    </div>
+    <div>
+      <div class="item-text">H3 | 科创50波段账户净值低于1500元 | 先减仓1/2并暂停新增买入；若净值继续低于1400元，清仓全部剩余科创50仓位。</div>
+      <ul class="evidence"><li>src/etf_tracker/strategy.py 覆盖1700/1500/1400三档H3净值信号。</li><li>tests/test_strategy.py 覆盖低于1500减仓和低于1400清仓优先级。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="三、第一层：硬规则" data-status="pass">
+    <div class="item-meta">
+      <span class="badge pass">通过</span>
+      <div>T037 · 第 60 行</div>
+      <div>table-row</div>
+      
+      <div>映射：H4-DROP-8</div>
+    </div>
+    <div>
+      <div class="item-text">H4 | 科创50ETF单日收盘跌幅超过8% | 次日暂停科创50全部新增买入。</div>
+      <ul class="evidence"><li>src/etf_tracker/strategy.py 识别科创50 pct_change &lt;= -8 的暂停提醒。</li><li>tests/test_strategy.py 覆盖单日跌幅超过8%的自动化测试。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="三、第一层：硬规则" data-status="pass">
+    <div class="item-meta">
+      <span class="badge pass">通过</span>
+      <div>T038 · 第 61 行</div>
+      <div>table-row</div>
+      
+      <div>映射：H5-A500-LOWER</div>
+    </div>
+    <div>
+      <div class="item-text">H5 | A500价格跌破网格下沿 | 暂停普通网格补仓，不止损，不动用普通网格资金继续加仓。</div>
+      <ul class="evidence"><li>src/etf_tracker/strategy.py 输出 A500 跌破网格下沿暂停普通网格补仓。</li><li>tests/test_strategy.py 覆盖 test_a500_actual_lower_edge_warns_pause_grid。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="三、第一层：硬规则" data-status="pass">
+    <div class="item-meta">
+      <span class="badge pass">通过</span>
+      <div>T039 · 第 62 行</div>
+      <div>table-row</div>
+      
+      <div>映射：H6-RESTART</div>
+    </div>
+    <div>
+      <div class="item-text">H6 | 任一策略清仓后 | 至少等待5个交易日，重新锁定基准价、阶段高点和资金池余额后方可重启。</div>
+      <ul class="evidence"><li>src/etf_tracker/strategy.py 从清仓成交推导 H6 冷却交易日，未满5个交易日阻断该标的新增买入。</li><li>tests/test_phase_three_strategy.py 覆盖第4个交易日阻断、第5个交易日重启试探仓和重锁指标展示。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="三、第一层：硬规则" data-status="pass">
+    <div class="item-meta">
+      <span class="badge pass">通过</span>
+      <div>T040 · 第 63 行</div>
+      <div>table-row</div>
+      
+      <div>映射：H7-THREE-LOSS-BUYS</div>
+    </div>
+    <div>
+      <div class="item-text">H7 | 单标的连续3笔新增买入触发10日浮亏规则 | 暂停该标的新增买入，进行专项复核。</div>
+      <ul class="evidence"><li>src/etf_tracker/strategy.py 对每笔新增买入定位第10个交易日复核价，连续3笔仍浮亏且当前仍浮亏时暂停新增买入。</li><li>tests/test_phase_three_strategy.py 覆盖同一标的连续3笔10日复核仍浮亏的 H7 阻断。</li></ul>
+      
+    </div>
+  </article>
+<div class="section-title">四、总风险闸门</div>
+<article class="item-card" data-item-card data-section="四、总风险闸门" data-status="pass">
+    <div class="item-meta">
+      <span class="badge pass">通过</span>
+      <div>T041 · 第 67 行</div>
+      <div>paragraph</div>
+      
+      <div>映射：PHASE4-017-H1-RISK-GATE</div>
+    </div>
+    <div>
+      <div class="item-text">当总投入成本达到7000元后，任何新增买入必须通过总风险闸门。</div>
+      <ul class="evidence"><li>src/etf_tracker/strategy.py 在 70%-85% 投入区间计算 H1 两项硬条件、三项参考条件和新增买入允许结论。</li><li>tests/test_strategy.py 覆盖 H1 全通过、参考条件不足、双标的同时弱势、估值缺失和 85% 绝对上限。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="四、总风险闸门" data-status="pass">
+    <div class="item-meta">
+      <span class="badge pass">通过</span>
+      <div>T042 · 第 69 行</div>
+      <div>paragraph</div>
+      
+      <div>映射：PHASE4-018-H1-RISK-GATE</div>
+    </div>
+    <div>
+      <div class="item-text">### 4.1 通过标准</div>
+      <ul class="evidence"><li>src/etf_tracker/strategy.py 在 70%-85% 投入区间计算 H1 两项硬条件、三项参考条件和新增买入允许结论。</li><li>tests/test_strategy.py 覆盖 H1 全通过、参考条件不足、双标的同时弱势、估值缺失和 85% 绝对上限。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="四、总风险闸门" data-status="pass">
+    <div class="item-meta">
+      <span class="badge pass">通过</span>
+      <div>T043 · 第 71 行</div>
+      <div>paragraph</div>
+      
+      <div>映射：RISK-GATE-STANDARD</div>
+    </div>
+    <div>
+      <div class="item-text">总风险闸门通过条件为：2项硬条件全部通过 + 3项参考条件至少通过2项。</div>
+      <ul class="evidence"><li>src/etf_tracker/strategy.py 实现2项硬条件、3项参考条件、通过数和允许/禁止结论。</li><li>tests/test_strategy.py 覆盖全通过、参考不足、85%上限等闸门标准。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="四、总风险闸门" data-status="pass">
+    <div class="item-meta">
+      <span class="badge pass">通过</span>
+      <div>T044 · 第 75 行</div>
+      <div>table-row</div>
+      
+      <div>映射：FLOATING-LOSS-RATIO</div>
+    </div>
+    <div>
+      <div class="item-text">硬条件1 | 总持仓浮亏比例 | 小于10%，以总投入成本为分母。</div>
+      <ul class="evidence"><li>src/etf_tracker/strategy.py 已按 max(0, 投入成本-当前市值)/投入成本 输出非负浮亏比例。</li><li>tests/test_strategy.py 覆盖亏损10%和盈利时0%两种口径。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="四、总风险闸门" data-status="pass">
+    <div class="item-meta">
+      <span class="badge pass">通过</span>
+      <div>T045 · 第 76 行</div>
+      <div>table-row</div>
+      
+      <div>映射：PHASE4-019-H1-RISK-GATE</div>
+    </div>
+    <div>
+      <div class="item-text">硬条件2 | 双标的趋势 | A500和科创50中，至少有一个不处于弱势状态。</div>
+      <ul class="evidence"><li>src/etf_tracker/strategy.py 在 70%-85% 投入区间计算 H1 两项硬条件、三项参考条件和新增买入允许结论。</li><li>tests/test_strategy.py 覆盖 H1 全通过、参考条件不足、双标的同时弱势、估值缺失和 85% 绝对上限。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="四、总风险闸门" data-status="pass">
+    <div class="item-meta">
+      <span class="badge pass">通过</span>
+      <div>T046 · 第 77 行</div>
+      <div>table-row</div>
+      
+      <div>映射：PHASE4-020-H1-RISK-GATE</div>
+    </div>
+    <div>
+      <div class="item-text">参考条件A | A500估值分位 | 处于近3年合理或偏低区间。</div>
+      <ul class="evidence"><li>src/etf_tracker/strategy.py 在 70%-85% 投入区间计算 H1 两项硬条件、三项参考条件和新增买入允许结论。</li><li>tests/test_strategy.py 覆盖 H1 全通过、参考条件不足、双标的同时弱势、估值缺失和 85% 绝对上限。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="四、总风险闸门" data-status="pass">
+    <div class="item-meta">
+      <span class="badge pass">通过</span>
+      <div>T047 · 第 78 行</div>
+      <div>table-row</div>
+      
+      <div>映射：PHASE4-021-H1-RISK-GATE</div>
+    </div>
+    <div>
+      <div class="item-text">参考条件B | 科创50估值分位 | 处于近3年合理或偏低区间。</div>
+      <ul class="evidence"><li>src/etf_tracker/strategy.py 在 70%-85% 投入区间计算 H1 两项硬条件、三项参考条件和新增买入允许结论。</li><li>tests/test_strategy.py 覆盖 H1 全通过、参考条件不足、双标的同时弱势、估值缺失和 85% 绝对上限。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="四、总风险闸门" data-status="pass">
+    <div class="item-meta">
+      <span class="badge pass">通过</span>
+      <div>T048 · 第 79 行</div>
+      <div>table-row</div>
+      
+      <div>映射：PHASE4-022-H1-RISK-GATE</div>
+    </div>
+    <div>
+      <div class="item-text">参考条件C | 冷却期 | 距离最近一次止损或止盈操作不少于10个交易日。</div>
+      <ul class="evidence"><li>src/etf_tracker/strategy.py 在 70%-85% 投入区间计算 H1 两项硬条件、三项参考条件和新增买入允许结论。</li><li>tests/test_strategy.py 覆盖 H1 全通过、参考条件不足、双标的同时弱势、估值缺失和 85% 绝对上限。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="四、总风险闸门" data-status="pass">
+    <div class="item-meta">
+      <span class="badge pass">通过</span>
+      <div>T049 · 第 81 行</div>
+      <div>paragraph</div>
+      
+      <div>映射：PHASE4-023-H1-RISK-GATE</div>
+    </div>
+    <div>
+      <div class="item-text">### 4.2 双标的趋势判定</div>
+      <ul class="evidence"><li>src/etf_tracker/strategy.py 在 70%-85% 投入区间计算 H1 两项硬条件、三项参考条件和新增买入允许结论。</li><li>tests/test_strategy.py 覆盖 H1 全通过、参考条件不足、双标的同时弱势、估值缺失和 85% 绝对上限。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="四、总风险闸门" data-status="pass">
+    <div class="item-meta">
+      <span class="badge pass">通过</span>
+      <div>T050 · 第 83 行</div>
+      <div>paragraph</div>
+      
+      <div>映射：PHASE4-024-H1-RISK-GATE</div>
+    </div>
+    <div>
+      <div class="item-text">硬条件2通过定义：</div>
+      <ul class="evidence"><li>src/etf_tracker/strategy.py 在 70%-85% 投入区间计算 H1 两项硬条件、三项参考条件和新增买入允许结论。</li><li>tests/test_strategy.py 覆盖 H1 全通过、参考条件不足、双标的同时弱势、估值缺失和 85% 绝对上限。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="四、总风险闸门" data-status="pass">
+    <div class="item-meta">
+      <span class="badge pass">通过</span>
+      <div>T051 · 第 85 行</div>
+      <div>paragraph</div>
+      
+      <div>映射：PHASE4-025-H1-RISK-GATE</div>
+    </div>
+    <div>
+      <div class="item-text">A500和科创50中，至少有一个满足以下任一项：</div>
+      <ul class="evidence"><li>src/etf_tracker/strategy.py 在 70%-85% 投入区间计算 H1 两项硬条件、三项参考条件和新增买入允许结论。</li><li>tests/test_strategy.py 覆盖 H1 全通过、参考条件不足、双标的同时弱势、估值缺失和 85% 绝对上限。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="四、总风险闸门" data-status="pass">
+    <div class="item-meta">
+      <span class="badge pass">通过</span>
+      <div>T052 · 第 87 行</div>
+      <div>bullet</div>
+      
+      <div>映射：PHASE4-026-H1-RISK-GATE</div>
+    </div>
+    <div>
+      <div class="item-text">当日收盘价大于或等于20日均线值；</div>
+      <ul class="evidence"><li>src/etf_tracker/strategy.py 在 70%-85% 投入区间计算 H1 两项硬条件、三项参考条件和新增买入允许结论。</li><li>tests/test_strategy.py 覆盖 H1 全通过、参考条件不足、双标的同时弱势、估值缺失和 85% 绝对上限。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="四、总风险闸门" data-status="pass">
+    <div class="item-meta">
+      <span class="badge pass">通过</span>
+      <div>T053 · 第 88 行</div>
+      <div>bullet</div>
+      
+      <div>映射：PHASE4-027-H1-RISK-GATE</div>
+    </div>
+    <div>
+      <div class="item-text">当日20日均线值大于或等于前一交易日20日均线值。</div>
+      <ul class="evidence"><li>src/etf_tracker/strategy.py 在 70%-85% 投入区间计算 H1 两项硬条件、三项参考条件和新增买入允许结论。</li><li>tests/test_strategy.py 覆盖 H1 全通过、参考条件不足、双标的同时弱势、估值缺失和 85% 绝对上限。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="四、总风险闸门" data-status="pass">
+    <div class="item-meta">
+      <span class="badge pass">通过</span>
+      <div>T054 · 第 90 行</div>
+      <div>paragraph</div>
+      
+      <div>映射：PHASE4-028-H1-RISK-GATE</div>
+    </div>
+    <div>
+      <div class="item-text">换言之，只有当A500和科创50同时处于“收盘价低于20日均线，且20日均线继续下行”状态时，硬条件2不通过。</div>
+      <ul class="evidence"><li>src/etf_tracker/strategy.py 在 70%-85% 投入区间计算 H1 两项硬条件、三项参考条件和新增买入允许结论。</li><li>tests/test_strategy.py 覆盖 H1 全通过、参考条件不足、双标的同时弱势、估值缺失和 85% 绝对上限。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="四、总风险闸门" data-status="pass">
+    <div class="item-meta">
+      <span class="badge pass">通过</span>
+      <div>T055 · 第 92 行</div>
+      <div>paragraph</div>
+      
+      <div>映射：RISK-GATE-STANDARD</div>
+    </div>
+    <div>
+      <div class="item-text">### 4.3 风险闸门检查表</div>
+      <ul class="evidence"><li>src/etf_tracker/strategy.py 实现2项硬条件、3项参考条件、通过数和允许/禁止结论。</li><li>tests/test_strategy.py 覆盖全通过、参考不足、85%上限等闸门标准。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="四、总风险闸门" data-status="pass">
+    <div class="item-meta">
+      <span class="badge pass">通过</span>
+      <div>T056 · 第 96 行</div>
+      <div>table-row</div>
+      
+      <div>映射：FLOATING-LOSS-RATIO</div>
+    </div>
+    <div>
+      <div class="item-text">总持仓浮亏比例 | ___% | □ 是 □ 否</div>
+      <ul class="evidence"><li>src/etf_tracker/strategy.py 已按 max(0, 投入成本-当前市值)/投入成本 输出非负浮亏比例。</li><li>tests/test_strategy.py 覆盖亏损10%和盈利时0%两种口径。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="四、总风险闸门" data-status="pass">
+    <div class="item-meta">
+      <span class="badge pass">通过</span>
+      <div>T057 · 第 97 行</div>
+      <div>table-row</div>
+      
+      <div>映射：PHASE4-029-H1-RISK-GATE</div>
+    </div>
+    <div>
+      <div class="item-text">双标的趋势 | □ 同时弱势 □ 非同时弱势 | □ 是 □ 否</div>
+      <ul class="evidence"><li>src/etf_tracker/strategy.py 在 70%-85% 投入区间计算 H1 两项硬条件、三项参考条件和新增买入允许结论。</li><li>tests/test_strategy.py 覆盖 H1 全通过、参考条件不足、双标的同时弱势、估值缺失和 85% 绝对上限。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="四、总风险闸门" data-status="pass">
+    <div class="item-meta">
+      <span class="badge pass">通过</span>
+      <div>T058 · 第 98 行</div>
+      <div>table-row</div>
+      
+      <div>映射：PHASE4-030-H1-RISK-GATE</div>
+    </div>
+    <div>
+      <div class="item-text">A500估值分位 | ___% | □ 是 □ 否</div>
+      <ul class="evidence"><li>src/etf_tracker/strategy.py 在 70%-85% 投入区间计算 H1 两项硬条件、三项参考条件和新增买入允许结论。</li><li>tests/test_strategy.py 覆盖 H1 全通过、参考条件不足、双标的同时弱势、估值缺失和 85% 绝对上限。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="四、总风险闸门" data-status="pass">
+    <div class="item-meta">
+      <span class="badge pass">通过</span>
+      <div>T059 · 第 99 行</div>
+      <div>table-row</div>
+      
+      <div>映射：PHASE4-031-H1-RISK-GATE</div>
+    </div>
+    <div>
+      <div class="item-text">科创50估值分位 | ___% | □ 是 □ 否</div>
+      <ul class="evidence"><li>src/etf_tracker/strategy.py 在 70%-85% 投入区间计算 H1 两项硬条件、三项参考条件和新增买入允许结论。</li><li>tests/test_strategy.py 覆盖 H1 全通过、参考条件不足、双标的同时弱势、估值缺失和 85% 绝对上限。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="四、总风险闸门" data-status="pass">
+    <div class="item-meta">
+      <span class="badge pass">通过</span>
+      <div>T060 · 第 100 行</div>
+      <div>table-row</div>
+      
+      <div>映射：PHASE4-032-H1-RISK-GATE</div>
+    </div>
+    <div>
+      <div class="item-text">距最近一次止损或止盈 | ___个交易日 | □ 是 □ 否</div>
+      <ul class="evidence"><li>src/etf_tracker/strategy.py 在 70%-85% 投入区间计算 H1 两项硬条件、三项参考条件和新增买入允许结论。</li><li>tests/test_strategy.py 覆盖 H1 全通过、参考条件不足、双标的同时弱势、估值缺失和 85% 绝对上限。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="四、总风险闸门" data-status="pass">
+    <div class="item-meta">
+      <span class="badge pass">通过</span>
+      <div>T061 · 第 101 行</div>
+      <div>table-row</div>
+      
+      <div>映射：RISK-GATE-STANDARD</div>
+    </div>
+    <div>
+      <div class="item-text">是否允许新增买入 | □ 允许 □ 不允许 | 复核人：___</div>
+      <ul class="evidence"><li>src/etf_tracker/strategy.py 实现2项硬条件、3项参考条件、通过数和允许/禁止结论。</li><li>tests/test_strategy.py 覆盖全通过、参考不足、85%上限等闸门标准。</li></ul>
+      
+    </div>
+  </article>
+<div class="section-title">五、第二层：标准流程</div>
+<article class="item-card" data-item-card data-section="五、第二层：标准流程" data-status="pass">
+    <div class="item-meta">
+      <span class="badge pass">通过</span>
+      <div>T062 · 第 105 行</div>
+      <div>paragraph</div>
+      
+      <div>映射：PHASE4-033-TRADE-RECORD-MISSING</div>
+    </div>
+    <div>
+      <div class="item-text">标准流程为日常执行主体。正常情况下按规则执行；如因极端行情调整，必须记录原因。</div>
+      <ul class="evidence"><li>Trade 模型、Python 解析器、Worker normalization 和 docs/index.html 已支持 signal_date、execution_date、trigger_rule、cash_balance、risk_gate_triggered、risk_gate_snapshot。</li><li>tests/test_trades.py、tests/worker.test.mjs 和 tests/test_report.py 覆盖新旧成交字段兼容、保存、展示和合规警告。</li></ul>
+      
+    </div>
+  </article>
+<div class="section-title">六、A500策略模块</div>
+<article class="item-card" data-item-card data-section="六、A500策略模块" data-status="pass">
+    <div class="item-meta">
+      <span class="badge pass">通过</span>
+      <div>T063 · 第 109 行</div>
+      <div>paragraph</div>
+      
+      <div>映射：A500-SYMBOL</div>
+    </div>
+    <div>
+      <div class="item-text">正式执行标的：华泰柏瑞中证A500ETF（563360）。首次执行前需以563360重新校准网格基准价、网格上沿和网格下沿。</div>
+      <ul class="evidence"><li>config.example.json 固定 A500 code=563360。</li><li>tests/test_market.py 覆盖 563360 的交易所前缀和行情源参数。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="六、A500策略模块" data-status="pass">
+    <div class="item-meta">
+      <span class="badge pass">通过</span>
+      <div>T064 · 第 111 行</div>
+      <div>paragraph</div>
+      
+      <div>映射：PHASE4-034-A500-GRID-ARCHIVE</div>
+    </div>
+    <div>
+      <div class="item-text">### 6.1 A500常规网格</div>
+      <ul class="evidence"><li>src/etf_tracker/strategy.py 输出 A500 实际/建议网格基准、上下沿、间距、开放网格和跌破下沿暂停。</li><li>tests/test_strategy.py 与 tests/test_phase_two_strategy.py 覆盖 A500 基准、5.5% 间距、普通补仓、配对卖出、下沿暂停和上沿提醒。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="六、A500策略模块" data-status="pass">
+    <div class="item-meta">
+      <span class="badge pass">通过</span>
+      <div>T065 · 第 115 行</div>
+      <div>table-row</div>
+      
+      <div>映射：PHASE4-035-A500-GRID-ARCHIVE</div>
+    </div>
+    <div>
+      <div class="item-text">A500常规网格池 | 5000 元</div>
+      <ul class="evidence"><li>src/etf_tracker/strategy.py 输出 A500 实际/建议网格基准、上下沿、间距、开放网格和跌破下沿暂停。</li><li>tests/test_strategy.py 与 tests/test_phase_two_strategy.py 覆盖 A500 基准、5.5% 间距、普通补仓、配对卖出、下沿暂停和上沿提醒。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="六、A500策略模块" data-status="pass">
+    <div class="item-meta">
+      <span class="badge pass">通过</span>
+      <div>T066 · 第 116 行</div>
+      <div>table-row</div>
+      
+      <div>映射：A500-INITIAL-BASE</div>
+    </div>
+    <div>
+      <div class="item-text">初始底仓 | 1000 元</div>
+      <ul class="evidence"><li>config.example.json 定义 base_position_amount=1000。</li><li>tests/test_strategy.py 和 tests/test_phase_two_strategy.py 覆盖 A500 初始底仓生成实际网格基准，且无持仓时只展示建议参数。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="六、A500策略模块" data-status="pass">
+    <div class="item-meta">
+      <span class="badge pass">通过</span>
+      <div>T067 · 第 117 行</div>
+      <div>table-row</div>
+      
+      <div>映射：PHASE4-036-A500-GRID-ARCHIVE</div>
+    </div>
+    <div>
+      <div class="item-text">单格补仓金额 | 600 元</div>
+      <ul class="evidence"><li>src/etf_tracker/strategy.py 输出 A500 实际/建议网格基准、上下沿、间距、开放网格和跌破下沿暂停。</li><li>tests/test_strategy.py 与 tests/test_phase_two_strategy.py 覆盖 A500 基准、5.5% 间距、普通补仓、配对卖出、下沿暂停和上沿提醒。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="六、A500策略模块" data-status="pass">
+    <div class="item-meta">
+      <span class="badge pass">通过</span>
+      <div>T068 · 第 118 行</div>
+      <div>table-row</div>
+      
+      <div>映射：PHASE4-037-A500-GRID-ARCHIVE</div>
+    </div>
+    <div>
+      <div class="item-text">最多普通补仓格数 | 5 格</div>
+      <ul class="evidence"><li>src/etf_tracker/strategy.py 输出 A500 实际/建议网格基准、上下沿、间距、开放网格和跌破下沿暂停。</li><li>tests/test_strategy.py 与 tests/test_phase_two_strategy.py 覆盖 A500 基准、5.5% 间距、普通补仓、配对卖出、下沿暂停和上沿提醒。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="六、A500策略模块" data-status="pass">
+    <div class="item-meta">
+      <span class="badge pass">通过</span>
+      <div>T069 · 第 119 行</div>
+      <div>table-row</div>
+      
+      <div>映射：A500-GRID-SPACING-MISMATCH</div>
+    </div>
+    <div>
+      <div class="item-text">网格间距 | 建议 5.5%-6%，最终以季度复核填入为准</div>
+      <ul class="evidence"><li>config.example.json 将 A500 grid_spacing 更新为 5.5%。</li><li>src/etf_tracker/strategy.py 实际网格默认使用 5.5%，tests/test_phase_two_strategy.py 覆盖默认间距。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="六、A500策略模块" data-status="manual">
+    <div class="item-meta">
+      <span class="badge manual">需人工复核/不适用</span>
+      <div>T070 · 第 120 行</div>
+      <div>table-row</div>
+      
+      <div>映射：PHASE4-038-MANUAL-REVIEW-BOUNDARY</div>
+    </div>
+    <div>
+      <div class="item-text">机动资金 | 1000 元，用于份额误差、滑点处理和季度复核后调整</div>
+      <ul class="evidence"><li>季度复核、估值平台选择、截图存档、策略有效性最终判断和跨池例外属于人工复核边界，系统只展示证据和提醒。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="六、A500策略模块" data-status="manual">
+    <div class="item-meta">
+      <span class="badge manual">需人工复核/不适用</span>
+      <div>T071 · 第 122 行</div>
+      <div>paragraph</div>
+      
+      <div>映射：PHASE4-039-MANUAL-REVIEW-BOUNDARY</div>
+    </div>
+    <div>
+      <div class="item-text">机动资金边界：</div>
+      <ul class="evidence"><li>季度复核、估值平台选择、截图存档、策略有效性最终判断和跨池例外属于人工复核边界，系统只展示证据和提醒。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="六、A500策略模块" data-status="manual">
+    <div class="item-meta">
+      <span class="badge manual">需人工复核/不适用</span>
+      <div>T072 · 第 126 行</div>
+      <div>table-row</div>
+      
+      <div>映射：PHASE4-040-MANUAL-BROKER-EXECUTION</div>
+    </div>
+    <div>
+      <div class="item-text">可用于 | 弥合ETF最小交易单位造成的金额偏差；处理条件单滑点；季度复核后调整网格间距或格数，并记录理由。</div>
+      <ul class="evidence"><li>本项目不连接券商；开盘时点、条件单、限价委托、滑点和流动性异常处理必须由用户人工执行并在成交备注中记录。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="六、A500策略模块" data-status="pass">
+    <div class="item-meta">
+      <span class="badge pass">通过</span>
+      <div>T073 · 第 127 行</div>
+      <div>table-row</div>
+      
+      <div>映射：PHASE4-041-A500-GRID-ARCHIVE</div>
+    </div>
+    <div>
+      <div class="item-text">不可用于 | 绕过硬规则追加买入；在跌破网格下沿后继续普通补仓；跨池调拨至科创50或全局备用金；未经复核加大单格买入金额。</div>
+      <ul class="evidence"><li>src/etf_tracker/strategy.py 输出 A500 实际/建议网格基准、上下沿、间距、开放网格和跌破下沿暂停。</li><li>tests/test_strategy.py 与 tests/test_phase_two_strategy.py 覆盖 A500 基准、5.5% 间距、普通补仓、配对卖出、下沿暂停和上沿提醒。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="六、A500策略模块" data-status="pass">
+    <div class="item-meta">
+      <span class="badge pass">通过</span>
+      <div>T074 · 第 129 行</div>
+      <div>paragraph</div>
+      
+      <div>映射：PHASE4-042-SECTION-HEADING-EVIDENCE</div>
+    </div>
+    <div>
+      <div class="item-text">执行规则：</div>
+      <ul class="evidence"><li>src/etf_tracker/strategy.py 的 A500 网格流程按底仓、普通补仓、配对卖出和下沿暂停机械执行。</li><li>tests/test_phase_two_strategy.py 覆盖 A500 执行规则主路径和阻断路径。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="六、A500策略模块" data-status="pass">
+    <div class="item-meta">
+      <span class="badge pass">通过</span>
+      <div>T075 · 第 131 行</div>
+      <div>bullet</div>
+      
+      <div>映射：A500-BASE-PRICE</div>
+    </div>
+    <div>
+      <div class="item-text">初始底仓以1000元买入，记录实际成交均价，作为A500网格基准价。</div>
+      <ul class="evidence"><li>src/etf_tracker/strategy.py 使用 A500 底仓买入均价生成实际网格基准。</li><li>tests/test_strategy.py 覆盖底仓成交均价、底仓优先和当前持仓均价回退。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="六、A500策略模块" data-status="pass">
+    <div class="item-meta">
+      <span class="badge pass">通过</span>
+      <div>T076 · 第 132 行</div>
+      <div>bullet</div>
+      
+      <div>映射：A500-GRID-BUY</div>
+    </div>
+    <div>
+      <div class="item-text">以网格基准价为起点，价格每下跌一个网格间距，买入600元，最多执行5档。</div>
+      <ul class="evidence"><li>src/etf_tracker/strategy.py 根据实际基准价、5.5% 间距和开放档位生成普通网格补仓候选。</li><li>tests/test_phase_two_strategy.py 覆盖第1格触发、已成交档位去重和单边保护阻断。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="六、A500策略模块" data-status="pass">
+    <div class="item-meta">
+      <span class="badge pass">通过</span>
+      <div>T077 · 第 133 行</div>
+      <div>bullet</div>
+      
+      <div>映射：A500-GRID-SELL</div>
+    </div>
+    <div>
+      <div class="item-text">每一笔补仓买入后，若价格较该笔补仓成交价上涨一个网格间距，卖出该笔补仓对应的实际份额。</div>
+      <ul class="evidence"><li>src/etf_tracker/strategy.py 从触发规则推导网格档位并按逐笔买入价 + 一个网格间距生成配对卖出。</li><li>tests/test_phase_two_strategy.py 覆盖 0.900 买入、0.950 触发卖出且按剩余份额提示。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="六、A500策略模块" data-status="manual">
+    <div class="item-meta">
+      <span class="badge manual">需人工复核/不适用</span>
+      <div>T078 · 第 134 行</div>
+      <div>bullet</div>
+      
+      <div>映射：A500-NO-BROKER</div>
+    </div>
+    <div>
+      <div class="item-text">常规网格使用盘中触价条件单，优先采用限价委托。</div>
+      <ul class="evidence"><li>本项目定位为记录、复盘和提醒，不连接券商、不自动下单。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="六、A500策略模块" data-status="pass">
+    <div class="item-meta">
+      <span class="badge pass">通过</span>
+      <div>T079 · 第 135 行</div>
+      <div>bullet</div>
+      
+      <div>映射：PHASE4-043-A500-GRID-ARCHIVE</div>
+    </div>
+    <div>
+      <div class="item-text">初始底仓不参与普通网格卖出，只执行底仓趋势止盈规则。</div>
+      <ul class="evidence"><li>src/etf_tracker/strategy.py 输出 A500 实际/建议网格基准、上下沿、间距、开放网格和跌破下沿暂停。</li><li>tests/test_strategy.py 与 tests/test_phase_two_strategy.py 覆盖 A500 基准、5.5% 间距、普通补仓、配对卖出、下沿暂停和上沿提醒。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="六、A500策略模块" data-status="pass">
+    <div class="item-meta">
+      <span class="badge pass">通过</span>
+      <div>T080 · 第 136 行</div>
+      <div>bullet</div>
+      
+      <div>映射：PHASE4-044-A500-GRID-ARCHIVE</div>
+    </div>
+    <div>
+      <div class="item-text">跌破网格下沿后，普通网格补仓暂停。</div>
+      <ul class="evidence"><li>src/etf_tracker/strategy.py 输出 A500 实际/建议网格基准、上下沿、间距、开放网格和跌破下沿暂停。</li><li>tests/test_strategy.py 与 tests/test_phase_two_strategy.py 覆盖 A500 基准、5.5% 间距、普通补仓、配对卖出、下沿暂停和上沿提醒。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="六、A500策略模块" data-status="pass">
+    <div class="item-meta">
+      <span class="badge pass">通过</span>
+      <div>T081 · 第 138 行</div>
+      <div>paragraph</div>
+      
+      <div>映射：PHASE4-045-A500-BASE-PROFIT-ARCHIVE</div>
+    </div>
+    <div>
+      <div class="item-text">### 6.2 A500底仓趋势止盈</div>
+      <ul class="evidence"><li>src/etf_tracker/strategy.py 独立追踪 A500 底仓第一次止盈、阶段高点和 8% 回撤。</li><li>tests/test_phase_two_strategy.py 覆盖 15% 底仓止盈、已止盈不重复、阶段高点更新和剩余底仓回撤止盈。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="六、A500策略模块" data-status="pass">
+    <div class="item-meta">
+      <span class="badge pass">通过</span>
+      <div>T082 · 第 140 行</div>
+      <div>paragraph</div>
+      
+      <div>映射：PHASE4-046-A500-BASE-PROFIT-ARCHIVE</div>
+    </div>
+    <div>
+      <div class="item-text">底仓趋势止盈独立于常规网格记录。</div>
+      <ul class="evidence"><li>src/etf_tracker/strategy.py 独立追踪 A500 底仓第一次止盈、阶段高点和 8% 回撤。</li><li>tests/test_phase_two_strategy.py 覆盖 15% 底仓止盈、已止盈不重复、阶段高点更新和剩余底仓回撤止盈。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="六、A500策略模块" data-status="pass">
+    <div class="item-meta">
+      <span class="badge pass">通过</span>
+      <div>T083 · 第 144 行</div>
+      <div>table-row</div>
+      
+      <div>映射：A500-BASE-PROFIT-15</div>
+    </div>
+    <div>
+      <div class="item-text">底仓盈利达到15% | 卖出底仓的1/2，锁定收益。</div>
+      <ul class="evidence"><li>src/etf_tracker/strategy.py 独立追踪 A500 底仓成本和第一次止盈状态。</li><li>tests/test_phase_two_strategy.py 覆盖底仓盈利15%触发且已记录第一次止盈后不重复。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="六、A500策略模块" data-status="pass">
+    <div class="item-meta">
+      <span class="badge pass">通过</span>
+      <div>T084 · 第 145 行</div>
+      <div>table-row</div>
+      
+      <div>映射：A500-BASE-TRAIL-8</div>
+    </div>
+    <div>
+      <div class="item-text">剩余底仓从阶段最高价回撤8% | 卖出剩余底仓。</div>
+      <ul class="evidence"><li>src/etf_tracker/strategy.py 根据第一次底仓止盈后的行情追踪阶段高点并判断8%回撤。</li><li>tests/test_phase_two_strategy.py 覆盖阶段高点更新和剩余底仓回撤止盈。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="六、A500策略模块" data-status="manual">
+    <div class="item-meta">
+      <span class="badge manual">需人工复核/不适用</span>
+      <div>T085 · 第 146 行</div>
+      <div>table-row</div>
+      
+      <div>映射：A500-NO-BROKER</div>
+    </div>
+    <div>
+      <div class="item-text">未达到网格上沿或趋势止盈条件 | 不设置底仓自动清仓条件单。</div>
+      <ul class="evidence"><li>本项目定位为记录、复盘和提醒，不连接券商、不自动下单。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="六、A500策略模块" data-status="pass">
+    <div class="item-meta">
+      <span class="badge pass">通过</span>
+      <div>T086 · 第 148 行</div>
+      <div>paragraph</div>
+      
+      <div>映射：PHASE4-047-A500-BASE-PROFIT-ARCHIVE</div>
+    </div>
+    <div>
+      <div class="item-text">底仓趋势止盈条件满足时，直接执行卖出动作，不因单边上涨复核而延迟。单边上涨复核仅用于判断是否进一步清空底仓或调整后续底仓规则。</div>
+      <ul class="evidence"><li>src/etf_tracker/strategy.py 独立追踪 A500 底仓第一次止盈、阶段高点和 8% 回撤。</li><li>tests/test_phase_two_strategy.py 覆盖 15% 底仓止盈、已止盈不重复、阶段高点更新和剩余底仓回撤止盈。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="六、A500策略模块" data-status="pass">
+    <div class="item-meta">
+      <span class="badge pass">通过</span>
+      <div>T087 · 第 150 行</div>
+      <div>paragraph</div>
+      
+      <div>映射：PHASE4-048-SECTION-HEADING-EVIDENCE</div>
+    </div>
+    <div>
+      <div class="item-text">### 6.3 A500单边保护</div>
+      <ul class="evidence"><li>src/etf_tracker/strategy.py 实现 A500 单边下跌暂停、恢复条件辅助判断和上沿提醒。</li><li>tests/test_phase_two_strategy.py 与 tests/test_strategy.py 覆盖连续3格开放补仓阻断和连续10日高于上沿提醒。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="六、A500策略模块" data-status="pass">
+    <div class="item-meta">
+      <span class="badge pass">通过</span>
+      <div>T088 · 第 154 行</div>
+      <div>table-row</div>
+      
+      <div>映射：A500-DOWNTREND-PROTECT</div>
+    </div>
+    <div>
+      <div class="item-text">单边下跌 | 连续3格补仓成交且无任何一格触发卖出，或价格连续10个交易日低于网格下沿 | 暂停普通网格补仓。</div>
+      <ul class="evidence"><li>src/etf_tracker/strategy.py 在3笔开放补仓或连续10日低于下沿时暂停普通网格补仓。</li><li>tests/test_phase_two_strategy.py 覆盖连续3格开放补仓阻断第4格候选。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="六、A500策略模块" data-status="pass">
+    <div class="item-meta">
+      <span class="badge pass">通过</span>
+      <div>T089 · 第 155 行</div>
+      <div>table-row</div>
+      
+      <div>映射：A500-DOWNTREND-PROTECT</div>
+    </div>
+    <div>
+      <div class="item-text">单边下跌恢复 | 价格重新回到网格区间内，并连续5个交易日维持在区间内 | 恢复普通网格交易。</div>
+      <ul class="evidence"><li>src/etf_tracker/strategy.py 在3笔开放补仓或连续10日低于下沿时暂停普通网格补仓。</li><li>tests/test_phase_two_strategy.py 覆盖连续3格开放补仓阻断第4格候选。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="六、A500策略模块" data-status="pass">
+    <div class="item-meta">
+      <span class="badge pass">通过</span>
+      <div>T090 · 第 156 行</div>
+      <div>table-row</div>
+      
+      <div>映射：A500-UPTREND-PROTECT</div>
+    </div>
+    <div>
+      <div class="item-text">单边上涨 | 价格连续10个交易日高于网格上沿，或底仓盈利达到趋势止盈条件 | 不追买；底仓趋势止盈条件满足则先执行，之后复核是否进一步清空底仓。</div>
+      <ul class="evidence"><li>src/etf_tracker/strategy.py 检查最近 10 日均高于上沿。</li><li>tests/test_strategy.py 覆盖 test_a500_actual_upper_edge_warns_after_10_days。</li></ul>
+      
+    </div>
+  </article>
+<div class="section-title">七、A500备用金规则</div>
+<article class="item-card" data-item-card data-section="七、A500备用金规则" data-status="pass">
+    <div class="item-meta">
+      <span class="badge pass">通过</span>
+      <div>T091 · 第 160 行</div>
+      <div>paragraph</div>
+      
+      <div>映射：PHASE4-049-A500-GRID-ARCHIVE</div>
+    </div>
+    <div>
+      <div class="item-text">A500备用金属于全局备用金的极端修正仓，单独记录，不混入A500常规网格。</div>
+      <ul class="evidence"><li>src/etf_tracker/strategy.py 输出 A500 实际/建议网格基准、上下沿、间距、开放网格和跌破下沿暂停。</li><li>tests/test_strategy.py 与 tests/test_phase_two_strategy.py 覆盖 A500 基准、5.5% 间距、普通补仓、配对卖出、下沿暂停和上沿提醒。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="七、A500备用金规则" data-status="pass">
+    <div class="item-meta">
+      <span class="badge pass">通过</span>
+      <div>T092 · 第 162 行</div>
+      <div>paragraph</div>
+      
+      <div>映射：PHASE4-050-A500-RESERVE-LIMITS</div>
+    </div>
+    <div>
+      <div class="item-text">### 7.1 触发条件</div>
+      <ul class="evidence"><li>src/etf_tracker/strategy.py 只把 A500 备用金作为人工复核候选，并检查估值、20日间隔、1000元单份和 8%/12% 边界。</li><li>tests/test_phase_two_strategy.py 覆盖 A/B/C 备用金候选、估值要求、间隔和备用金仓位边界。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="七、A500备用金规则" data-status="manual">
+    <div class="item-meta">
+      <span class="badge manual">需人工复核/不适用</span>
+      <div>T093 · 第 164 行</div>
+      <div>paragraph</div>
+      
+      <div>映射：A500-RESERVE-MANUAL</div>
+    </div>
+    <div>
+      <div class="item-text">当A500跌破网格下沿后，普通网格补仓暂停。若满足以下任意一组条件，可人工复核后动用备用金最多1000元：</div>
+      <ul class="evidence"><li>A500 备用金规则依赖估值分位和人工复核，当前系统只在跌破下沿后提示人工候选。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="七、A500备用金规则" data-status="manual">
+    <div class="item-meta">
+      <span class="badge manual">需人工复核/不适用</span>
+      <div>T094 · 第 168 行</div>
+      <div>table-row</div>
+      
+      <div>映射：A500-RESERVE-MANUAL</div>
+    </div>
+    <div>
+      <div class="item-text">A | 跌破网格下沿后继续下跌7%-8%，且估值低于历史20%分位 | 1000 元</div>
+      <ul class="evidence"><li>A500 备用金规则依赖估值分位和人工复核，当前系统只在跌破下沿后提示人工候选。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="七、A500备用金规则" data-status="manual">
+    <div class="item-meta">
+      <span class="badge manual">需人工复核/不适用</span>
+      <div>T095 · 第 169 行</div>
+      <div>table-row</div>
+      
+      <div>映射：A500-RESERVE-MANUAL</div>
+    </div>
+    <div>
+      <div class="item-text">B | 估值低于历史10%分位 | 1000 元</div>
+      <ul class="evidence"><li>A500 备用金规则依赖估值分位和人工复核，当前系统只在跌破下沿后提示人工候选。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="七、A500备用金规则" data-status="manual">
+    <div class="item-meta">
+      <span class="badge manual">需人工复核/不适用</span>
+      <div>T096 · 第 170 行</div>
+      <div>table-row</div>
+      
+      <div>映射：A500-RESERVE-MANUAL</div>
+    </div>
+    <div>
+      <div class="item-text">C | 跌破网格下沿后继续下跌10%以上 | 1000 元</div>
+      <ul class="evidence"><li>A500 备用金规则依赖估值分位和人工复核，当前系统只在跌破下沿后提示人工候选。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="七、A500备用金规则" data-status="pass">
+    <div class="item-meta">
+      <span class="badge pass">通过</span>
+      <div>T097 · 第 172 行</div>
+      <div>paragraph</div>
+      
+      <div>映射：PHASE4-051-A500-GRID-ARCHIVE</div>
+    </div>
+    <div>
+      <div class="item-text">条件C中的10%以网格下沿价格为基准计算，不以最近一次买入价为基准。</div>
+      <ul class="evidence"><li>src/etf_tracker/strategy.py 输出 A500 实际/建议网格基准、上下沿、间距、开放网格和跌破下沿暂停。</li><li>tests/test_strategy.py 与 tests/test_phase_two_strategy.py 覆盖 A500 基准、5.5% 间距、普通补仓、配对卖出、下沿暂停和上沿提醒。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="七、A500备用金规则" data-status="pass">
+    <div class="item-meta">
+      <span class="badge pass">通过</span>
+      <div>T098 · 第 174 行</div>
+      <div>paragraph</div>
+      
+      <div>映射：A500-RESERVE-LIMITS</div>
+    </div>
+    <div>
+      <div class="item-text">### 7.2 动用间隔</div>
+      <ul class="evidence"><li>src/etf_tracker/strategy.py 输出 A/B/C 备用金候选、20日动用间隔、备用金持仓浮盈亏、8%暂停和12%复核。</li><li>tests/test_phase_two_strategy.py 覆盖备用金 A/B/C 候选、估值要求和备用金亏损边界。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="七、A500备用金规则" data-status="pass">
+    <div class="item-meta">
+      <span class="badge pass">通过</span>
+      <div>T099 · 第 176 行</div>
+      <div>bullet</div>
+      
+      <div>映射：A500-RESERVE-LIMITS</div>
+    </div>
+    <div>
+      <div class="item-text">默认两次备用金动用之间至少间隔20个交易日。</div>
+      <ul class="evidence"><li>src/etf_tracker/strategy.py 输出 A/B/C 备用金候选、20日动用间隔、备用金持仓浮盈亏、8%暂停和12%复核。</li><li>tests/test_phase_two_strategy.py 覆盖备用金 A/B/C 候选、估值要求和备用金亏损边界。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="七、A500备用金规则" data-status="manual">
+    <div class="item-meta">
+      <span class="badge manual">需人工复核/不适用</span>
+      <div>T100 · 第 177 行</div>
+      <div>bullet</div>
+      
+      <div>映射：A500-RESERVE-MANUAL</div>
+    </div>
+    <div>
+      <div class="item-text">若间隔期内价格反弹超过5%，随后再次跌破前低，且估值仍低于20%分位，可将间隔缩短至10个交易日。</div>
+      <ul class="evidence"><li>A500 备用金规则依赖估值分位和人工复核，当前系统只在跌破下沿后提示人工候选。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="七、A500备用金规则" data-status="manual">
+    <div class="item-meta">
+      <span class="badge manual">需人工复核/不适用</span>
+      <div>T101 · 第 178 行</div>
+      <div>bullet</div>
+      
+      <div>映射：A500-RESERVE-MANUAL</div>
+    </div>
+    <div>
+      <div class="item-text">即使满足缩短条件，仍必须人工复核。</div>
+      <ul class="evidence"><li>A500 备用金规则依赖估值分位和人工复核，当前系统只在跌破下沿后提示人工候选。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="七、A500备用金规则" data-status="pass">
+    <div class="item-meta">
+      <span class="badge pass">通过</span>
+      <div>T102 · 第 180 行</div>
+      <div>paragraph</div>
+      
+      <div>映射：PHASE4-052-A500-RESERVE-LIMITS</div>
+    </div>
+    <div>
+      <div class="item-text">### 7.3 备用金仓位管理</div>
+      <ul class="evidence"><li>src/etf_tracker/strategy.py 只把 A500 备用金作为人工复核候选，并检查估值、20日间隔、1000元单份和 8%/12% 边界。</li><li>tests/test_phase_two_strategy.py 覆盖 A/B/C 备用金候选、估值要求、间隔和备用金仓位边界。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="七、A500备用金规则" data-status="pass">
+    <div class="item-meta">
+      <span class="badge pass">通过</span>
+      <div>T103 · 第 184 行</div>
+      <div>table-row</div>
+      
+      <div>映射：A500-RESERVE-LIMITS</div>
+    </div>
+    <div>
+      <div class="item-text">盈利10%-15% | 分2次卖出，锁定收益。</div>
+      <ul class="evidence"><li>src/etf_tracker/strategy.py 输出 A/B/C 备用金候选、20日动用间隔、备用金持仓浮盈亏、8%暂停和12%复核。</li><li>tests/test_phase_two_strategy.py 覆盖备用金 A/B/C 候选、估值要求和备用金亏损边界。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="七、A500备用金规则" data-status="pass">
+    <div class="item-meta">
+      <span class="badge pass">通过</span>
+      <div>T104 · 第 185 行</div>
+      <div>table-row</div>
+      
+      <div>映射：PHASE4-053-A500-RESERVE-LIMITS</div>
+    </div>
+    <div>
+      <div class="item-text">亏损未超过8% | 继续持有，正常跟踪。</div>
+      <ul class="evidence"><li>src/etf_tracker/strategy.py 只把 A500 备用金作为人工复核候选，并检查估值、20日间隔、1000元单份和 8%/12% 边界。</li><li>tests/test_phase_two_strategy.py 覆盖 A/B/C 备用金候选、估值要求、间隔和备用金仓位边界。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="七、A500备用金规则" data-status="pass">
+    <div class="item-meta">
+      <span class="badge pass">通过</span>
+      <div>T105 · 第 186 行</div>
+      <div>table-row</div>
+      
+      <div>映射：A500-RESERVE-LIMITS</div>
+    </div>
+    <div>
+      <div class="item-text">亏损超过8% | 暂停下一笔备用金投入，不立即止损，等待季度复核。</div>
+      <ul class="evidence"><li>src/etf_tracker/strategy.py 输出 A/B/C 备用金候选、20日动用间隔、备用金持仓浮盈亏、8%暂停和12%复核。</li><li>tests/test_phase_two_strategy.py 覆盖备用金 A/B/C 候选、估值要求和备用金亏损边界。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="七、A500备用金规则" data-status="pass">
+    <div class="item-meta">
+      <span class="badge pass">通过</span>
+      <div>T106 · 第 187 行</div>
+      <div>table-row</div>
+      
+      <div>映射：A500-RESERVE-LIMITS</div>
+    </div>
+    <div>
+      <div class="item-text">季度复核时仍亏损超过12% | 决策是否认亏退出，或降级为长期持有仓，并记录理由。</div>
+      <ul class="evidence"><li>src/etf_tracker/strategy.py 输出 A/B/C 备用金候选、20日动用间隔、备用金持仓浮盈亏、8%暂停和12%复核。</li><li>tests/test_phase_two_strategy.py 覆盖备用金 A/B/C 候选、估值要求和备用金亏损边界。</li></ul>
+      
+    </div>
+  </article>
+<div class="section-title">八、科创50策略模块</div>
+<article class="item-card" data-item-card data-section="八、科创50策略模块" data-status="pass">
+    <div class="item-meta">
+      <span class="badge pass">通过</span>
+      <div>T107 · 第 191 行</div>
+      <div>paragraph</div>
+      
+      <div>映射：KC50-SYMBOL</div>
+    </div>
+    <div>
+      <div class="item-text">正式执行标的：华夏上证科创板50成份ETF（588000）。首次执行前确认费率、成交单位和估值数据源。</div>
+      <ul class="evidence"><li>config.example.json 固定 kc50 code=588000。</li><li>tests/test_market.py 覆盖 588000 的交易所前缀和行情源参数。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="八、科创50策略模块" data-status="pass">
+    <div class="item-meta">
+      <span class="badge pass">通过</span>
+      <div>T108 · 第 193 行</div>
+      <div>paragraph</div>
+      
+      <div>映射：PHASE4-054-SECTION-HEADING-EVIDENCE</div>
+    </div>
+    <div>
+      <div class="item-text">### 8.1 统一触发口径</div>
+      <ul class="evidence"><li>src/etf_tracker/strategy.py 所有科创50触发判断均基于日线收盘行情，盘中执行留给人工记录。</li><li>tests/test_strategy.py 与 tests/test_phase_two_strategy.py 使用可控日线序列覆盖科创50买卖触发。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="八、科创50策略模块" data-status="pass">
+    <div class="item-meta">
+      <span class="badge pass">通过</span>
+      <div>T109 · 第 195 行</div>
+      <div>bullet</div>
+      
+      <div>映射：KC50-TRAILING-PROFIT</div>
+    </div>
+    <div>
+      <div class="item-text">买入、止盈、移动止盈和风控均以收盘价确认。</div>
+      <ul class="evidence"><li>src/etf_tracker/strategy.py 第二次止盈后追踪阶段高点，按12%/13%回撤或连续2日跌破10日均线提示移动止盈。</li><li>tests/test_phase_two_strategy.py 覆盖移动止盈触发和 S2 高波动13%阈值。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="八、科创50策略模块" data-status="manual">
+    <div class="item-meta">
+      <span class="badge manual">需人工复核/不适用</span>
+      <div>T110 · 第 196 行</div>
+      <div>bullet</div>
+      
+      <div>映射：PHASE4-055-MANUAL-BROKER-EXECUTION</div>
+    </div>
+    <div>
+      <div class="item-text">确认后次日开盘后5-15分钟内执行。</div>
+      <ul class="evidence"><li>本项目不连接券商；开盘时点、条件单、限价委托、滑点和流动性异常处理必须由用户人工执行并在成交备注中记录。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="八、科创50策略模块" data-status="manual">
+    <div class="item-meta">
+      <span class="badge manual">需人工复核/不适用</span>
+      <div>T111 · 第 197 行</div>
+      <div>bullet</div>
+      
+      <div>映射：A500-NO-BROKER</div>
+    </div>
+    <div>
+      <div class="item-text">次日执行优先使用限价委托，价格接近当时买一或卖一。</div>
+      <ul class="evidence"><li>本项目定位为记录、复盘和提醒，不连接券商、不自动下单。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="八、科创50策略模块" data-status="manual">
+    <div class="item-meta">
+      <span class="badge manual">需人工复核/不适用</span>
+      <div>T112 · 第 198 行</div>
+      <div>bullet</div>
+      
+      <div>映射：PHASE4-056-MANUAL-BROKER-EXECUTION</div>
+    </div>
+    <div>
+      <div class="item-text">不因盘中临时波动提前触发科创50波段买卖。</div>
+      <ul class="evidence"><li>本项目不连接券商；开盘时点、条件单、限价委托、滑点和流动性异常处理必须由用户人工执行并在成交备注中记录。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="八、科创50策略模块" data-status="manual">
+    <div class="item-meta">
+      <span class="badge manual">需人工复核/不适用</span>
+      <div>T113 · 第 199 行</div>
+      <div>bullet</div>
+      
+      <div>映射：PHASE4-057-MANUAL-BROKER-EXECUTION</div>
+    </div>
+    <div>
+      <div class="item-text">若次日出现极端跳空或流动性异常，可延后至开盘后15-30分钟重新评估，并记录原因。</div>
+      <ul class="evidence"><li>本项目不连接券商；开盘时点、条件单、限价委托、滑点和流动性异常处理必须由用户人工执行并在成交备注中记录。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="八、科创50策略模块" data-status="pass">
+    <div class="item-meta">
+      <span class="badge pass">通过</span>
+      <div>T114 · 第 201 行</div>
+      <div>paragraph</div>
+      
+      <div>映射：PHASE4-058-SECTION-HEADING-EVIDENCE</div>
+    </div>
+    <div>
+      <div class="item-text">### 8.2 买入规则</div>
+      <ul class="evidence"><li>src/etf_tracker/strategy.py 按近252日高点回撤、买入档位、估值和过滤条件生成科创50买入候选。</li><li>tests/test_strategy.py 与 tests/test_phase_two_strategy.py 覆盖科创50第一至第四笔买入规则。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="八、科创50策略模块" data-status="pass">
+    <div class="item-meta">
+      <span class="badge pass">通过</span>
+      <div>T115 · 第 203 行</div>
+      <div>paragraph</div>
+      
+      <div>映射：PHASE4-059-KC50-BUY-STEPS</div>
+    </div>
+    <div>
+      <div class="item-text">回撤基准：第一笔买入信号触发当日，向前回看12个月收盘价最高值。</div>
+      <ul class="evidence"><li>src/etf_tracker/strategy.py 使用近252日高点回撤、已买金额、估值和第4笔过滤条件推导科创50四笔买入候选。</li><li>tests/test_strategy.py 与 tests/test_phase_two_strategy.py 覆盖第一笔触发、第二/第三笔、估值延后、第4笔过滤和买入阶段推进。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="八、科创50策略模块" data-status="pass">
+    <div class="item-meta">
+      <span class="badge pass">通过</span>
+      <div>T116 · 第 207 行</div>
+      <div>table-row</div>
+      
+      <div>映射：KC50-FIRST-BUY</div>
+    </div>
+    <div>
+      <div class="item-text">第一笔 | 收盘价较阶段高点回撤22% | 400 元 | 400 元</div>
+      <ul class="evidence"><li>src/etf_tracker/strategy.py 根据近 252 日高点回撤识别第一笔。</li><li>tests/test_strategy.py 覆盖第一笔触发和未触发提示。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="八、科创50策略模块" data-status="pass">
+    <div class="item-meta">
+      <span class="badge pass">通过</span>
+      <div>T117 · 第 208 行</div>
+      <div>table-row</div>
+      
+      <div>映射：KC50-SECOND-THIRD-BUY</div>
+    </div>
+    <div>
+      <div class="item-text">第二笔 | 收盘价较阶段高点回撤30% | 500 元 | 900 元</div>
+      <ul class="evidence"><li>src/etf_tracker/strategy.py 按累计买入金额和配置 buy_steps 推进第二、第三笔候选。</li><li>tests/test_phase_two_strategy.py 覆盖已买第一笔触发第二笔、已买前两笔触发第三笔。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="八、科创50策略模块" data-status="pass">
+    <div class="item-meta">
+      <span class="badge pass">通过</span>
+      <div>T118 · 第 209 行</div>
+      <div>table-row</div>
+      
+      <div>映射：KC50-SECOND-THIRD-BUY</div>
+    </div>
+    <div>
+      <div class="item-text">第三笔 | 收盘价较阶段高点回撤38% | 500 元 | 1400 元</div>
+      <ul class="evidence"><li>src/etf_tracker/strategy.py 按累计买入金额和配置 buy_steps 推进第二、第三笔候选。</li><li>tests/test_phase_two_strategy.py 覆盖已买第一笔触发第二笔、已买前两笔触发第三笔。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="八、科创50策略模块" data-status="pass">
+    <div class="item-meta">
+      <span class="badge pass">通过</span>
+      <div>T119 · 第 210 行</div>
+      <div>table-row</div>
+      
+      <div>映射：KC50-FOURTH-BUY</div>
+    </div>
+    <div>
+      <div class="item-text">第四笔 | 收盘价较阶段高点回撤45%，且满足第4笔过滤条件 | 600 元 | 2000 元</div>
+      <ul class="evidence"><li>src/etf_tracker/strategy.py 第4笔要求已有第三笔、近5日不创新低、站上5日均线且 PE/PB 至少一项低于25%。</li><li>tests/test_phase_two_strategy.py 覆盖第4笔过滤条件通过后的候选。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="八、科创50策略模块" data-status="pass">
+    <div class="item-meta">
+      <span class="badge pass">通过</span>
+      <div>T120 · 第 212 行</div>
+      <div>paragraph</div>
+      
+      <div>映射：KC50-VALUATION-CROSS</div>
+    </div>
+    <div>
+      <div class="item-text">估值交叉验证：</div>
+      <ul class="evidence"><li>src/etf_tracker/strategy.py 使用手工估值分位判断第一笔22%触发时是否延后，并允许25%回撤重新触发。</li><li>tests/test_phase_two_strategy.py 覆盖估值高于50%延后和更深回撤触发。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="八、科创50策略模块" data-status="pass">
+    <div class="item-meta">
+      <span class="badge pass">通过</span>
+      <div>T121 · 第 214 行</div>
+      <div>bullet</div>
+      
+      <div>映射：KC50-FIRST-BUY</div>
+    </div>
+    <div>
+      <div class="item-text">若第一笔22%回撤触发时，科创50估值仍高于历史50%分位，则暂不执行第一笔买入。</div>
+      <ul class="evidence"><li>src/etf_tracker/strategy.py 根据近 252 日高点回撤识别第一笔。</li><li>tests/test_strategy.py 覆盖第一笔触发和未触发提示。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="八、科创50策略模块" data-status="pass">
+    <div class="item-meta">
+      <span class="badge pass">通过</span>
+      <div>T122 · 第 215 行</div>
+      <div>bullet</div>
+      
+      <div>映射：KC50-VALUATION-CROSS</div>
+    </div>
+    <div>
+      <div class="item-text">延后触发条件为：回撤达到25%，或估值回落至历史50%分位及以下，二者满足其一后再执行第一笔。</div>
+      <ul class="evidence"><li>src/etf_tracker/strategy.py 使用手工估值分位判断第一笔22%触发时是否延后，并允许25%回撤重新触发。</li><li>tests/test_phase_two_strategy.py 覆盖估值高于50%延后和更深回撤触发。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="八、科创50策略模块" data-status="pass">
+    <div class="item-meta">
+      <span class="badge pass">通过</span>
+      <div>T123 · 第 216 行</div>
+      <div>bullet</div>
+      
+      <div>映射：PHASE4-060-KC50-BUY-STEPS</div>
+    </div>
+    <div>
+      <div class="item-text">第一笔实际触发后，第二、三、四笔仍按30%、38%、45%执行，不重新调整阶段高点。</div>
+      <ul class="evidence"><li>src/etf_tracker/strategy.py 使用近252日高点回撤、已买金额、估值和第4笔过滤条件推导科创50四笔买入候选。</li><li>tests/test_strategy.py 与 tests/test_phase_two_strategy.py 覆盖第一笔触发、第二/第三笔、估值延后、第4笔过滤和买入阶段推进。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="八、科创50策略模块" data-status="manual">
+    <div class="item-meta">
+      <span class="badge manual">需人工复核/不适用</span>
+      <div>T124 · 第 217 行</div>
+      <div>bullet</div>
+      
+      <div>映射：PHASE4-061-MANUAL-REVIEW-BOUNDARY</div>
+    </div>
+    <div>
+      <div class="item-text">如阶段高点明显来自孤立极端冲高，可在专项复核中同时记录12个月收盘价90分位数作为参考，但不自动替代阶段高点。</div>
+      <ul class="evidence"><li>季度复核、估值平台选择、截图存档、策略有效性最终判断和跨池例外属于人工复核边界，系统只展示证据和提醒。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="八、科创50策略模块" data-status="pass">
+    <div class="item-meta">
+      <span class="badge pass">通过</span>
+      <div>T125 · 第 218 行</div>
+      <div>bullet</div>
+      
+      <div>映射：KC50-VALUATION-CROSS</div>
+    </div>
+    <div>
+      <div class="item-text">估值交叉验证默认使用信号确认日收盘后的同一数据源；若平台数据延迟，应在次日执行前确认其对应的是信号确认日数据，并记录查询时间。</div>
+      <ul class="evidence"><li>src/etf_tracker/strategy.py 使用手工估值分位判断第一笔22%触发时是否延后，并允许25%回撤重新触发。</li><li>tests/test_phase_two_strategy.py 覆盖估值高于50%延后和更深回撤触发。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="八、科创50策略模块" data-status="pass">
+    <div class="item-meta">
+      <span class="badge pass">通过</span>
+      <div>T126 · 第 220 行</div>
+      <div>paragraph</div>
+      
+      <div>映射：PHASE4-062-SECTION-HEADING-EVIDENCE</div>
+    </div>
+    <div>
+      <div class="item-text">执行细节：</div>
+      <ul class="evidence"><li>src/etf_tracker/strategy.py 在买满前只启用阶段性监控，完整趋势减仓在买满4笔后才触发。</li><li>tests/test_phase_two_strategy.py 覆盖2笔、3笔、4笔不同风控阶段。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="八、科创50策略模块" data-status="pass">
+    <div class="item-meta">
+      <span class="badge pass">通过</span>
+      <div>T127 · 第 222 行</div>
+      <div>bullet</div>
+      
+      <div>映射：KC50-LOT-SIZE</div>
+    </div>
+    <div>
+      <div class="item-text">买入金额按实际成交价格和ETF最小交易单位调整，原则为不超过目标金额、按100份整数买入。</div>
+      <ul class="evidence"><li>cloudflare-worker/worker.js 对科创50买入校验100份整数倍和档位目标金额。</li><li>tests/worker.test.mjs 覆盖无备注拒绝、带复盘备注保存并写入 compliance_warnings。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="八、科创50策略模块" data-status="pass">
+    <div class="item-meta">
+      <span class="badge pass">通过</span>
+      <div>T128 · 第 223 行</div>
+      <div>bullet</div>
+      
+      <div>映射：PHASE4-063-KC50-BUY-STEPS</div>
+    </div>
+    <div>
+      <div class="item-text">买满前不因单笔亏损止损。</div>
+      <ul class="evidence"><li>src/etf_tracker/strategy.py 使用近252日高点回撤、已买金额、估值和第4笔过滤条件推导科创50四笔买入候选。</li><li>tests/test_strategy.py 与 tests/test_phase_two_strategy.py 覆盖第一笔触发、第二/第三笔、估值延后、第4笔过滤和买入阶段推进。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="八、科创50策略模块" data-status="pass">
+    <div class="item-meta">
+      <span class="badge pass">通过</span>
+      <div>T129 · 第 224 行</div>
+      <div>bullet</div>
+      
+      <div>映射：PHASE4-064-KC50-BUY-STEPS</div>
+    </div>
+    <div>
+      <div class="item-text">买满前不启动完整趋势减仓，但第2笔后启动简化风控监控。</div>
+      <ul class="evidence"><li>src/etf_tracker/strategy.py 使用近252日高点回撤、已买金额、估值和第4笔过滤条件推导科创50四笔买入候选。</li><li>tests/test_strategy.py 与 tests/test_phase_two_strategy.py 覆盖第一笔触发、第二/第三笔、估值延后、第4笔过滤和买入阶段推进。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="八、科创50策略模块" data-status="pass">
+    <div class="item-meta">
+      <span class="badge pass">通过</span>
+      <div>T130 · 第 225 行</div>
+      <div>bullet</div>
+      
+      <div>映射：H3-NET-VALUE</div>
+    </div>
+    <div>
+      <div class="item-text">无论是否买满，只要波段账户净值低于1500元，按H3执行应急风控；若继续低于1400元，清仓全部科创50仓位。</div>
+      <ul class="evidence"><li>src/etf_tracker/strategy.py 覆盖1700/1500/1400三档H3净值信号。</li><li>tests/test_strategy.py 覆盖低于1500减仓和低于1400清仓优先级。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="八、科创50策略模块" data-status="pass">
+    <div class="item-meta">
+      <span class="badge pass">通过</span>
+      <div>T131 · 第 227 行</div>
+      <div>paragraph</div>
+      
+      <div>映射：KC50-FOURTH-BUY</div>
+    </div>
+    <div>
+      <div class="item-text">### 8.3 第4笔过滤条件</div>
+      <ul class="evidence"><li>src/etf_tracker/strategy.py 第4笔要求已有第三笔、近5日不创新低、站上5日均线且 PE/PB 至少一项低于25%。</li><li>tests/test_phase_two_strategy.py 覆盖第4笔过滤条件通过后的候选。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="八、科创50策略模块" data-status="pass">
+    <div class="item-meta">
+      <span class="badge pass">通过</span>
+      <div>T132 · 第 229 行</div>
+      <div>paragraph</div>
+      
+      <div>映射：KC50-FOURTH-BUY</div>
+    </div>
+    <div>
+      <div class="item-text">第4笔不允许仅因跌幅达到45%而机械买入。</div>
+      <ul class="evidence"><li>src/etf_tracker/strategy.py 第4笔要求已有第三笔、近5日不创新低、站上5日均线且 PE/PB 至少一项低于25%。</li><li>tests/test_phase_two_strategy.py 覆盖第4笔过滤条件通过后的候选。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="八、科创50策略模块" data-status="pass">
+    <div class="item-meta">
+      <span class="badge pass">通过</span>
+      <div>T133 · 第 231 行</div>
+      <div>paragraph</div>
+      
+      <div>映射：PHASE4-065-SECTION-HEADING-EVIDENCE</div>
+    </div>
+    <div>
+      <div class="item-text">执行条件：</div>
+      <ul class="evidence"><li>src/etf_tracker/strategy.py 的第4笔过滤条件同时检查5日不创新低、站上5日均线和 PE/PB 估值。</li><li>tests/test_phase_two_strategy.py 覆盖第4笔过滤条件通过后的候选。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="八、科创50策略模块" data-status="pass">
+    <div class="item-meta">
+      <span class="badge pass">通过</span>
+      <div>T134 · 第 233 行</div>
+      <div>bullet</div>
+      
+      <div>映射：NEW-LOW</div>
+    </div>
+    <div>
+      <div class="item-text">在第3笔买入后，连续5个交易日不创20日新低；</div>
+      <ul class="evidence"><li>src/etf_tracker/indicators.py 实现 is_20_day_new_low。</li><li>tests/test_indicators.py 覆盖低于前20日低点触发、等于前低不触发。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="八、科创50策略模块" data-status="pass">
+    <div class="item-meta">
+      <span class="badge pass">通过</span>
+      <div>T135 · 第 234 行</div>
+      <div>bullet</div>
+      
+      <div>映射：PHASE4-066-KC50-BUY-STEPS</div>
+    </div>
+    <div>
+      <div class="item-text">且其中某一日收盘价站上5日均线；</div>
+      <ul class="evidence"><li>src/etf_tracker/strategy.py 使用近252日高点回撤、已买金额、估值和第4笔过滤条件推导科创50四笔买入候选。</li><li>tests/test_strategy.py 与 tests/test_phase_two_strategy.py 覆盖第一笔触发、第二/第三笔、估值延后、第4笔过滤和买入阶段推进。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="八、科创50策略模块" data-status="pass">
+    <div class="item-meta">
+      <span class="badge pass">通过</span>
+      <div>T136 · 第 235 行</div>
+      <div>bullet</div>
+      
+      <div>映射：KC50-FOURTH-BUY</div>
+    </div>
+    <div>
+      <div class="item-text">两项同时满足后的下一个交易日，方可执行第4笔。</div>
+      <ul class="evidence"><li>src/etf_tracker/strategy.py 第4笔要求已有第三笔、近5日不创新低、站上5日均线且 PE/PB 至少一项低于25%。</li><li>tests/test_phase_two_strategy.py 覆盖第4笔过滤条件通过后的候选。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="八、科创50策略模块" data-status="pass">
+    <div class="item-meta">
+      <span class="badge pass">通过</span>
+      <div>T137 · 第 237 行</div>
+      <div>paragraph</div>
+      
+      <div>映射：PHASE4-067-KC50-BUY-STEPS</div>
+    </div>
+    <div>
+      <div class="item-text">若第5个不创新低交易日未站上5日均线，则继续等待，直到某一交易日同时满足两项条件。</div>
+      <ul class="evidence"><li>src/etf_tracker/strategy.py 使用近252日高点回撤、已买金额、估值和第4笔过滤条件推导科创50四笔买入候选。</li><li>tests/test_strategy.py 与 tests/test_phase_two_strategy.py 覆盖第一笔触发、第二/第三笔、估值延后、第4笔过滤和买入阶段推进。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="八、科创50策略模块" data-status="manual">
+    <div class="item-meta">
+      <span class="badge manual">需人工复核/不适用</span>
+      <div>T138 · 第 239 行</div>
+      <div>paragraph</div>
+      
+      <div>映射：VALUATION-SOURCE</div>
+    </div>
+    <div>
+      <div class="item-text">估值低位参考：PE或PB至少一项低于历史25%分位。估值数据源应固定为同一平台，并在复盘中记录截图或数值。</div>
+      <ul class="evidence"><li>src/etf_tracker/valuation.py 当前只输出估值分位自动源未锁定提示。</li><li>估值来源和截图需交付前人工锁定。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="八、科创50策略模块" data-status="pass">
+    <div class="item-meta">
+      <span class="badge pass">通过</span>
+      <div>T139 · 第 241 行</div>
+      <div>paragraph</div>
+      
+      <div>映射：PHASE4-068-SECTION-HEADING-EVIDENCE</div>
+    </div>
+    <div>
+      <div class="item-text">### 8.4 止盈规则</div>
+      <ul class="evidence"><li>src/etf_tracker/strategy.py 实现科创50固定止盈、移动止盈高点和10日均线移动止盈。</li><li>tests/test_phase_two_strategy.py 覆盖固定止盈、已记录止盈不重复和移动止盈。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="八、科创50策略模块" data-status="pass">
+    <div class="item-meta">
+      <span class="badge pass">通过</span>
+      <div>T140 · 第 243 行</div>
+      <div>paragraph</div>
+      
+      <div>映射：PHASE4-069-KC50-PROFIT-TAKE</div>
+    </div>
+    <div>
+      <div class="item-text">止盈基准：首次止盈前锁定的综合持仓成本。部分卖出后，不重新计算止盈基准成本。</div>
+      <ul class="evidence"><li>src/etf_tracker/strategy.py 按科创50持仓成本、已记录止盈状态、移动止盈高点和 S2 阈值生成固定/移动止盈提醒。</li><li>tests/test_phase_two_strategy.py 覆盖 15%/30% 固定止盈、已记录止盈不重复、移动止盈高点和 12%/13% 回撤阈值。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="八、科创50策略模块" data-status="pass">
+    <div class="item-meta">
+      <span class="badge pass">通过</span>
+      <div>T141 · 第 247 行</div>
+      <div>table-row</div>
+      
+      <div>映射：KC50-PROFIT-TAKE</div>
+    </div>
+    <div>
+      <div class="item-text">收盘价相对固定综合持仓成本盈利15% | 次日卖出1/3仓位。</div>
+      <ul class="evidence"><li>src/etf_tracker/strategy.py 按已记录止盈状态避免重复提示15%/30%固定止盈。</li><li>tests/test_phase_two_strategy.py 覆盖15%固定止盈和已记录止盈后的不重复。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="八、科创50策略模块" data-status="pass">
+    <div class="item-meta">
+      <span class="badge pass">通过</span>
+      <div>T142 · 第 248 行</div>
+      <div>table-row</div>
+      
+      <div>映射：KC50-PROFIT-TAKE</div>
+    </div>
+    <div>
+      <div class="item-text">收盘价相对固定综合持仓成本盈利30% | 次日再卖出1/3仓位。</div>
+      <ul class="evidence"><li>src/etf_tracker/strategy.py 按已记录止盈状态避免重复提示15%/30%固定止盈。</li><li>tests/test_phase_two_strategy.py 覆盖15%固定止盈和已记录止盈后的不重复。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="八、科创50策略模块" data-status="pass">
+    <div class="item-meta">
+      <span class="badge pass">通过</span>
+      <div>T143 · 第 249 行</div>
+      <div>table-row</div>
+      
+      <div>映射：KC50-TRAILING-PROFIT</div>
+    </div>
+    <div>
+      <div class="item-text">剩余1/3仓位 | 启动移动止盈。</div>
+      <ul class="evidence"><li>src/etf_tracker/strategy.py 第二次止盈后追踪阶段高点，按12%/13%回撤或连续2日跌破10日均线提示移动止盈。</li><li>tests/test_phase_two_strategy.py 覆盖移动止盈触发和 S2 高波动13%阈值。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="八、科创50策略模块" data-status="pass">
+    <div class="item-meta">
+      <span class="badge pass">通过</span>
+      <div>T144 · 第 250 行</div>
+      <div>table-row</div>
+      
+      <div>映射：PHASE4-070-KC50-PROFIT-TAKE</div>
+    </div>
+    <div>
+      <div class="item-text">单次卖出金额不足300元 | 可合并至下一档止盈执行。</div>
+      <ul class="evidence"><li>src/etf_tracker/strategy.py 按科创50持仓成本、已记录止盈状态、移动止盈高点和 S2 阈值生成固定/移动止盈提醒。</li><li>tests/test_phase_two_strategy.py 覆盖 15%/30% 固定止盈、已记录止盈不重复、移动止盈高点和 12%/13% 回撤阈值。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="八、科创50策略模块" data-status="pass">
+    <div class="item-meta">
+      <span class="badge pass">通过</span>
+      <div>T145 · 第 252 行</div>
+      <div>paragraph</div>
+      
+      <div>映射：KC50-TRAILING-PROFIT</div>
+    </div>
+    <div>
+      <div class="item-text">移动止盈规则：</div>
+      <ul class="evidence"><li>src/etf_tracker/strategy.py 第二次止盈后追踪阶段高点，按12%/13%回撤或连续2日跌破10日均线提示移动止盈。</li><li>tests/test_phase_two_strategy.py 覆盖移动止盈触发和 S2 高波动13%阈值。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="八、科创50策略模块" data-status="pass">
+    <div class="item-meta">
+      <span class="badge pass">通过</span>
+      <div>T146 · 第 254 行</div>
+      <div>bullet</div>
+      
+      <div>映射：PHASE4-071-KC50-PROFIT-TAKE</div>
+    </div>
+    <div>
+      <div class="item-text">第二次止盈成交当日收盘价作为剩余仓位初始阶段反弹高点；</div>
+      <ul class="evidence"><li>src/etf_tracker/strategy.py 按科创50持仓成本、已记录止盈状态、移动止盈高点和 S2 阈值生成固定/移动止盈提醒。</li><li>tests/test_phase_two_strategy.py 覆盖 15%/30% 固定止盈、已记录止盈不重复、移动止盈高点和 12%/13% 回撤阈值。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="八、科创50策略模块" data-status="pass">
+    <div class="item-meta">
+      <span class="badge pass">通过</span>
+      <div>T147 · 第 255 行</div>
+      <div>bullet</div>
+      
+      <div>映射：PHASE4-072-KC50-PROFIT-TAKE</div>
+    </div>
+    <div>
+      <div class="item-text">之后若出现更高收盘价，则更新阶段反弹高点；</div>
+      <ul class="evidence"><li>src/etf_tracker/strategy.py 按科创50持仓成本、已记录止盈状态、移动止盈高点和 S2 阈值生成固定/移动止盈提醒。</li><li>tests/test_phase_two_strategy.py 覆盖 15%/30% 固定止盈、已记录止盈不重复、移动止盈高点和 12%/13% 回撤阈值。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="八、科创50策略模块" data-status="pass">
+    <div class="item-meta">
+      <span class="badge pass">通过</span>
+      <div>T148 · 第 256 行</div>
+      <div>bullet</div>
+      
+      <div>映射：KC50-TRAILING-PROFIT</div>
+    </div>
+    <div>
+      <div class="item-text">剩余仓位从阶段最高收盘价回撤12%时卖出；</div>
+      <ul class="evidence"><li>src/etf_tracker/strategy.py 第二次止盈后追踪阶段高点，按12%/13%回撤或连续2日跌破10日均线提示移动止盈。</li><li>tests/test_phase_two_strategy.py 覆盖移动止盈触发和 S2 高波动13%阈值。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="八、科创50策略模块" data-status="pass">
+    <div class="item-meta">
+      <span class="badge pass">通过</span>
+      <div>T149 · 第 257 行</div>
+      <div>bullet</div>
+      
+      <div>映射：KC50-TRAILING-PROFIT</div>
+    </div>
+    <div>
+      <div class="item-text">或连续2个交易日收盘价跌破10日均线时卖出。</div>
+      <ul class="evidence"><li>src/etf_tracker/strategy.py 第二次止盈后追踪阶段高点，按12%/13%回撤或连续2日跌破10日均线提示移动止盈。</li><li>tests/test_phase_two_strategy.py 覆盖移动止盈触发和 S2 高波动13%阈值。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="八、科创50策略模块" data-status="pass">
+    <div class="item-meta">
+      <span class="badge pass">通过</span>
+      <div>T150 · 第 259 行</div>
+      <div>paragraph</div>
+      
+      <div>映射：PHASE4-073-SECTION-HEADING-EVIDENCE</div>
+    </div>
+    <div>
+      <div class="item-text">### 8.5 止损与观察规则</div>
+      <ul class="evidence"><li>src/etf_tracker/strategy.py 实现 H3 净值止损、H3恢复观察和 H4 单日跌幅暂停。</li><li>tests/test_strategy.py 与 tests/test_phase_two_strategy.py 覆盖 H3 1400/1500/1700、恢复和 H4。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="八、科创50策略模块" data-status="pass">
+    <div class="item-meta">
+      <span class="badge pass">通过</span>
+      <div>T151 · 第 263 行</div>
+      <div>table-row</div>
+      
+      <div>映射：KC50-NET-1700</div>
+    </div>
+    <div>
+      <div class="item-text">波段账户净值低于1700元 | 停止新增买入，进入观察。</div>
+      <ul class="evidence"><li>src/etf_tracker/strategy.py 在科创50波段净值低于1700时停止新增买入并阻断候选。</li><li>tests/test_phase_two_strategy.py 覆盖低于1700时将新增买入候选转为禁止。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="八、科创50策略模块" data-status="pass">
+    <div class="item-meta">
+      <span class="badge pass">通过</span>
+      <div>T152 · 第 264 行</div>
+      <div>table-row</div>
+      
+      <div>映射：KC50-RECOVER-1800</div>
+    </div>
+    <div>
+      <div class="item-text">波段账户净值重新回到1800元以上，并维持5个交易日 | 恢复买入资格。</div>
+      <ul class="evidence"><li>src/etf_tracker/strategy.py 从 H3 成交记录推导恢复状态，要求连续5个交易日净值高于1800。</li><li>tests/test_phase_two_strategy.py 覆盖4日不恢复、5日恢复。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="八、科创50策略模块" data-status="pass">
+    <div class="item-meta">
+      <span class="badge pass">通过</span>
+      <div>T153 · 第 265 行</div>
+      <div>table-row</div>
+      
+      <div>映射：KC50-NET-1500</div>
+    </div>
+    <div>
+      <div class="item-text">波段账户净值低于1500元 | 卖出当前科创50仓位的1/2，暂停全部新增买入。</div>
+      <ul class="evidence"><li>src/etf_tracker/strategy.py 有低于 1500 的减仓 1/2 信号。</li><li>tests/test_strategy.py 覆盖 test_kc50_h3_signal_when_net_value_below_1500。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="八、科创50策略模块" data-status="pass">
+    <div class="item-meta">
+      <span class="badge pass">通过</span>
+      <div>T154 · 第 266 行</div>
+      <div>table-row</div>
+      
+      <div>映射：KC50-NET-1400</div>
+    </div>
+    <div>
+      <div class="item-text">波段账户净值低于1400元 | 清仓全部剩余科创50仓位。</div>
+      <ul class="evidence"><li>src/etf_tracker/strategy.py 在净值低于1400时优先提示清仓。</li><li>tests/test_strategy.py 覆盖1400优先于1500减仓信号。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="八、科创50策略模块" data-status="pass">
+    <div class="item-meta">
+      <span class="badge pass">通过</span>
+      <div>T155 · 第 267 行</div>
+      <div>table-row</div>
+      
+      <div>映射：PHASE4-074-KC50-GRADED-RISK</div>
+    </div>
+    <div>
+      <div class="item-text">科创50ETF单日收盘跌幅超过8% | 次日暂停全部新增买入。</div>
+      <ul class="evidence"><li>src/etf_tracker/strategy.py 计算科创50波段净值、H3 1400/1500/1700 阈值、H3恢复、H4跌幅、分级风控和时间复核。</li><li>tests/test_strategy.py 与 tests/test_phase_two_strategy.py 覆盖 H3 阈值优先级、1700阻断、5日恢复、H4、2/3/4笔分级风控和60日复核。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="八、科创50策略模块" data-status="pass">
+    <div class="item-meta">
+      <span class="badge pass">通过</span>
+      <div>T156 · 第 269 行</div>
+      <div>paragraph</div>
+      
+      <div>映射：PHASE4-075-FUNDS-POOLS</div>
+    </div>
+    <div>
+      <div class="item-text">科创50波段账户净值 = 科创50持仓市值 + 科创50波段现金余额，不包含全局备用金。</div>
+      <ul class="evidence"><li>src/etf_tracker/portfolio.py 按 a500_grid、kc50_wave、reserve 分池计算现金余额和卖出回池。</li><li>tests/test_accounting.py 覆盖资金池初始余额、卖出回池和备用金独立归属。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="八、科创50策略模块" data-status="pass">
+    <div class="item-meta">
+      <span class="badge pass">通过</span>
+      <div>T157 · 第 271 行</div>
+      <div>paragraph</div>
+      
+      <div>映射：H3-NET-VALUE</div>
+    </div>
+    <div>
+      <div class="item-text">H3减仓1/2后，即使因卖出回收现金导致波段账户净值回到1500元以上，也不得自动恢复新增买入资格。恢复新增买入仍必须满足“波段账户净值重新回到1800元以上，并维持5个交易日”的条件。</div>
+      <ul class="evidence"><li>src/etf_tracker/strategy.py 覆盖1700/1500/1400三档H3净值信号。</li><li>tests/test_strategy.py 覆盖低于1500减仓和低于1400清仓优先级。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="八、科创50策略模块" data-status="pass">
+    <div class="item-meta">
+      <span class="badge pass">通过</span>
+      <div>T158 · 第 273 行</div>
+      <div>paragraph</div>
+      
+      <div>映射：PHASE4-076-SECTION-HEADING-EVIDENCE</div>
+    </div>
+    <div>
+      <div class="item-text">### 8.6 分级风控</div>
+      <ul class="evidence"><li>src/etf_tracker/strategy.py 按买入笔数区分2笔暂停、3笔第4笔复核和4笔完整风控减仓。</li><li>tests/test_phase_two_strategy.py 覆盖分级风控的2笔、3笔和4笔阶段。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="八、科创50策略模块" data-status="pass">
+    <div class="item-meta">
+      <span class="badge pass">通过</span>
+      <div>T159 · 第 277 行</div>
+      <div>table-row</div>
+      
+      <div>映射：PHASE4-077-KC50-GRADED-RISK</div>
+    </div>
+    <div>
+      <div class="item-text">买入1笔 | 无额外风控，按标准流程跟踪。</div>
+      <ul class="evidence"><li>src/etf_tracker/strategy.py 计算科创50波段净值、H3 1400/1500/1700 阈值、H3恢复、H4跌幅、分级风控和时间复核。</li><li>tests/test_strategy.py 与 tests/test_phase_two_strategy.py 覆盖 H3 阈值优先级、1700阻断、5日恢复、H4、2/3/4笔分级风控和60日复核。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="八、科创50策略模块" data-status="pass">
+    <div class="item-meta">
+      <span class="badge pass">通过</span>
+      <div>T160 · 第 278 行</div>
+      <div>table-row</div>
+      
+      <div>映射：PHASE4-078-KC50-GRADED-RISK</div>
+    </div>
+    <div>
+      <div class="item-text">买入2笔 | 若连续10个交易日收盘价低于20日均线，暂停新增买入。</div>
+      <ul class="evidence"><li>src/etf_tracker/strategy.py 计算科创50波段净值、H3 1400/1500/1700 阈值、H3恢复、H4跌幅、分级风控和时间复核。</li><li>tests/test_strategy.py 与 tests/test_phase_two_strategy.py 覆盖 H3 阈值优先级、1700阻断、5日恢复、H4、2/3/4笔分级风控和60日复核。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="八、科创50策略模块" data-status="pass">
+    <div class="item-meta">
+      <span class="badge pass">通过</span>
+      <div>T161 · 第 279 行</div>
+      <div>table-row</div>
+      
+      <div>映射：KC50-FOURTH-BUY</div>
+    </div>
+    <div>
+      <div class="item-text">买入3笔 | 若连续15个交易日低于下行的20日均线，第4笔必须等待第4笔过滤条件和人工复核。</div>
+      <ul class="evidence"><li>src/etf_tracker/strategy.py 第4笔要求已有第三笔、近5日不创新低、站上5日均线且 PE/PB 至少一项低于25%。</li><li>tests/test_phase_two_strategy.py 覆盖第4笔过滤条件通过后的候选。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="八、科创50策略模块" data-status="pass">
+    <div class="item-meta">
+      <span class="badge pass">通过</span>
+      <div>T162 · 第 280 行</div>
+      <div>table-row</div>
+      
+      <div>映射：PHASE4-079-KC50-GRADED-RISK</div>
+    </div>
+    <div>
+      <div class="item-text">买满4笔 | 启动完整风控减仓规则。</div>
+      <ul class="evidence"><li>src/etf_tracker/strategy.py 计算科创50波段净值、H3 1400/1500/1700 阈值、H3恢复、H4跌幅、分级风控和时间复核。</li><li>tests/test_strategy.py 与 tests/test_phase_two_strategy.py 覆盖 H3 阈值优先级、1700阻断、5日恢复、H4、2/3/4笔分级风控和60日复核。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="八、科创50策略模块" data-status="pass">
+    <div class="item-meta">
+      <span class="badge pass">通过</span>
+      <div>T163 · 第 282 行</div>
+      <div>paragraph</div>
+      
+      <div>映射：PHASE4-080-KC50-GRADED-RISK</div>
+    </div>
+    <div>
+      <div class="item-text">完整风控减仓：</div>
+      <ul class="evidence"><li>src/etf_tracker/strategy.py 计算科创50波段净值、H3 1400/1500/1700 阈值、H3恢复、H4跌幅、分级风控和时间复核。</li><li>tests/test_strategy.py 与 tests/test_phase_two_strategy.py 覆盖 H3 阈值优先级、1700阻断、5日恢复、H4、2/3/4笔分级风控和60日复核。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="八、科创50策略模块" data-status="pass">
+    <div class="item-meta">
+      <span class="badge pass">通过</span>
+      <div>T164 · 第 286 行</div>
+      <div>table-row</div>
+      
+      <div>映射：PHASE4-081-KC50-GRADED-RISK</div>
+    </div>
+    <div>
+      <div class="item-text">买满4笔后，连续20个交易日收盘价低于20日均线，20日均线持续下行，且相对综合持仓成本亏损超过15% | 启动分3次减仓，每次减1/3，每周执行一次。</div>
+      <ul class="evidence"><li>src/etf_tracker/strategy.py 计算科创50波段净值、H3 1400/1500/1700 阈值、H3恢复、H4跌幅、分级风控和时间复核。</li><li>tests/test_strategy.py 与 tests/test_phase_two_strategy.py 覆盖 H3 阈值优先级、1700阻断、5日恢复、H4、2/3/4笔分级风控和60日复核。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="八、科创50策略模块" data-status="pass">
+    <div class="item-meta">
+      <span class="badge pass">通过</span>
+      <div>T165 · 第 287 行</div>
+      <div>table-row</div>
+      
+      <div>映射：PHASE4-082-KC50-GRADED-RISK</div>
+    </div>
+    <div>
+      <div class="item-text">减仓过程中，收盘价重新站上20日均线，且连续3个交易日不跌破 | 暂停后续减仓，剩余仓位恢复正常止盈规则。</div>
+      <ul class="evidence"><li>src/etf_tracker/strategy.py 计算科创50波段净值、H3 1400/1500/1700 阈值、H3恢复、H4跌幅、分级风控和时间复核。</li><li>tests/test_strategy.py 与 tests/test_phase_two_strategy.py 覆盖 H3 阈值优先级、1700阻断、5日恢复、H4、2/3/4笔分级风控和60日复核。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="八、科创50策略模块" data-status="pass">
+    <div class="item-meta">
+      <span class="badge pass">通过</span>
+      <div>T166 · 第 289 行</div>
+      <div>paragraph</div>
+      
+      <div>映射：H3-NET-VALUE</div>
+    </div>
+    <div>
+      <div class="item-text">风控减仓过程中，若科创50波段账户净值触发H3应急风控线，按H3执行：低于1500元先减仓1/2并暂停新增买入；若继续低于1400元，立即清仓全部剩余仓位，不再等待后续减仓周期。</div>
+      <ul class="evidence"><li>src/etf_tracker/strategy.py 覆盖1700/1500/1400三档H3净值信号。</li><li>tests/test_strategy.py 覆盖低于1500减仓和低于1400清仓优先级。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="八、科创50策略模块" data-status="pass">
+    <div class="item-meta">
+      <span class="badge pass">通过</span>
+      <div>T167 · 第 291 行</div>
+      <div>paragraph</div>
+      
+      <div>映射：PHASE4-083-KC50-GRADED-RISK</div>
+    </div>
+    <div>
+      <div class="item-text">优先级：</div>
+      <ul class="evidence"><li>src/etf_tracker/strategy.py 计算科创50波段净值、H3 1400/1500/1700 阈值、H3恢复、H4跌幅、分级风控和时间复核。</li><li>tests/test_strategy.py 与 tests/test_phase_two_strategy.py 覆盖 H3 阈值优先级、1700阻断、5日恢复、H4、2/3/4笔分级风控和60日复核。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="八、科创50策略模块" data-status="pass">
+    <div class="item-meta">
+      <span class="badge pass">通过</span>
+      <div>T168 · 第 293 行</div>
+      <div>paragraph</div>
+      
+      <div>映射：KC50-TRAILING-PROFIT</div>
+    </div>
+    <div>
+      <div class="item-text">兜底风控 &gt; 固定止盈/移动止盈 &gt; 风控减仓 &gt; 新增买入。</div>
+      <ul class="evidence"><li>src/etf_tracker/strategy.py 第二次止盈后追踪阶段高点，按12%/13%回撤或连续2日跌破10日均线提示移动止盈。</li><li>tests/test_phase_two_strategy.py 覆盖移动止盈触发和 S2 高波动13%阈值。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="八、科创50策略模块" data-status="pass">
+    <div class="item-meta">
+      <span class="badge pass">通过</span>
+      <div>T169 · 第 295 行</div>
+      <div>paragraph</div>
+      
+      <div>映射：PHASE4-084-SECTION-HEADING-EVIDENCE</div>
+    </div>
+    <div>
+      <div class="item-text">### 8.7 时间复核</div>
+      <ul class="evidence"><li>src/etf_tracker/strategy.py 按交易日计算科创50持仓天数并输出60/120日复核提醒。</li><li>tests/test_phase_two_strategy.py 覆盖科创50 60日时间复核提醒。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="八、科创50策略模块" data-status="pass">
+    <div class="item-meta">
+      <span class="badge pass">通过</span>
+      <div>T170 · 第 299 行</div>
+      <div>table-row</div>
+      
+      <div>映射：PHASE4-085-KC50-PROFIT-TAKE</div>
+    </div>
+    <div>
+      <div class="item-text">持仓超过60个交易日，盈利5%-15%，且收盘价跌破20日均线 | 可选择卖出一半或全部，并记录理由。</div>
+      <ul class="evidence"><li>src/etf_tracker/strategy.py 按科创50持仓成本、已记录止盈状态、移动止盈高点和 S2 阈值生成固定/移动止盈提醒。</li><li>tests/test_phase_two_strategy.py 覆盖 15%/30% 固定止盈、已记录止盈不重复、移动止盈高点和 12%/13% 回撤阈值。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="八、科创50策略模块" data-status="pass">
+    <div class="item-meta">
+      <span class="badge pass">通过</span>
+      <div>T171 · 第 300 行</div>
+      <div>table-row</div>
+      
+      <div>映射：PHASE4-086-KC50-PROFIT-TAKE</div>
+    </div>
+    <div>
+      <div class="item-text">持仓超过120个交易日，盈利仍不足5% | 强制专项复核，决定继续持有、减仓或退出。</div>
+      <ul class="evidence"><li>src/etf_tracker/strategy.py 按科创50持仓成本、已记录止盈状态、移动止盈高点和 S2 阈值生成固定/移动止盈提醒。</li><li>tests/test_phase_two_strategy.py 覆盖 15%/30% 固定止盈、已记录止盈不重复、移动止盈高点和 12%/13% 回撤阈值。</li></ul>
+      
+    </div>
+  </article>
+<div class="section-title">九、科创50备用金回暖规则</div>
+<article class="item-card" data-item-card data-section="九、科创50备用金回暖规则" data-status="pass">
+    <div class="item-meta">
+      <span class="badge pass">通过</span>
+      <div>T172 · 第 304 行</div>
+      <div>paragraph</div>
+      
+      <div>映射：H3-NET-VALUE</div>
+    </div>
+    <div>
+      <div class="item-text">科创50因H3跌破1400元清仓后，不得立即使用备用金。重新投入备用金必须满足硬信号，并参考软信号。</div>
+      <ul class="evidence"><li>src/etf_tracker/strategy.py 覆盖1700/1500/1400三档H3净值信号。</li><li>tests/test_strategy.py 覆盖低于1500减仓和低于1400清仓优先级。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="九、科创50备用金回暖规则" data-status="pass">
+    <div class="item-meta">
+      <span class="badge pass">通过</span>
+      <div>T173 · 第 306 行</div>
+      <div>paragraph</div>
+      
+      <div>映射：KC50-RESERVE-RECOVERY</div>
+    </div>
+    <div>
+      <div class="item-text">### 9.1 硬信号</div>
+      <ul class="evidence"><li>src/etf_tracker/strategy.py 从 H3 清仓记录、H3恢复状态、备用金安全垫和 reserve.kc50_recovery 人工确认推导科创50备用金回暖候选。</li><li>tests/test_phase_three_strategy.py 覆盖缺少人工确认等待复核、确认后最多1000元候选以及已使用1份时阻断。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="九、科创50备用金回暖规则" data-status="pass">
+    <div class="item-meta">
+      <span class="badge pass">通过</span>
+      <div>T174 · 第 310 行</div>
+      <div>table-row</div>
+      
+      <div>映射：KC50-RESERVE-RECOVERY</div>
+    </div>
+    <div>
+      <div class="item-text">基础信号 | 估值低于历史30%分位，且连续5个交易日未创新低 | 500 元</div>
+      <ul class="evidence"><li>src/etf_tracker/strategy.py 从 H3 清仓记录、H3恢复状态、备用金安全垫和 reserve.kc50_recovery 人工确认推导科创50备用金回暖候选。</li><li>tests/test_phase_three_strategy.py 覆盖缺少人工确认等待复核、确认后最多1000元候选以及已使用1份时阻断。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="九、科创50备用金回暖规则" data-status="pass">
+    <div class="item-meta">
+      <span class="badge pass">通过</span>
+      <div>T175 · 第 311 行</div>
+      <div>table-row</div>
+      
+      <div>映射：KC50-RESERVE-RECOVERY</div>
+    </div>
+    <div>
+      <div class="item-text">增强信号 | 基础信号 + 收盘价站上20日均线，或20日均线拐头向上 | 1000 元</div>
+      <ul class="evidence"><li>src/etf_tracker/strategy.py 从 H3 清仓记录、H3恢复状态、备用金安全垫和 reserve.kc50_recovery 人工确认推导科创50备用金回暖候选。</li><li>tests/test_phase_three_strategy.py 覆盖缺少人工确认等待复核、确认后最多1000元候选以及已使用1份时阻断。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="九、科创50备用金回暖规则" data-status="pass">
+    <div class="item-meta">
+      <span class="badge pass">通过</span>
+      <div>T176 · 第 313 行</div>
+      <div>paragraph</div>
+      
+      <div>映射：KC50-RESERVE-RECOVERY</div>
+    </div>
+    <div>
+      <div class="item-text">20日均线拐头向上定义：当日20日均线值高于前一交易日20日均线值。</div>
+      <ul class="evidence"><li>src/etf_tracker/strategy.py 从 H3 清仓记录、H3恢复状态、备用金安全垫和 reserve.kc50_recovery 人工确认推导科创50备用金回暖候选。</li><li>tests/test_phase_three_strategy.py 覆盖缺少人工确认等待复核、确认后最多1000元候选以及已使用1份时阻断。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="九、科创50备用金回暖规则" data-status="pass">
+    <div class="item-meta">
+      <span class="badge pass">通过</span>
+      <div>T177 · 第 315 行</div>
+      <div>paragraph</div>
+      
+      <div>映射：KC50-RESERVE-RECOVERY</div>
+    </div>
+    <div>
+      <div class="item-text">### 9.2 软信号</div>
+      <ul class="evidence"><li>src/etf_tracker/strategy.py 从 H3 清仓记录、H3恢复状态、备用金安全垫和 reserve.kc50_recovery 人工确认推导科创50备用金回暖候选。</li><li>tests/test_phase_three_strategy.py 覆盖缺少人工确认等待复核、确认后最多1000元候选以及已使用1份时阻断。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="九、科创50备用金回暖规则" data-status="pass">
+    <div class="item-meta">
+      <span class="badge pass">通过</span>
+      <div>T178 · 第 317 行</div>
+      <div>paragraph</div>
+      
+      <div>映射：KC50-RESERVE-RECOVERY</div>
+    </div>
+    <div>
+      <div class="item-text">软信号只用于复核，不单独触发买入：</div>
+      <ul class="evidence"><li>src/etf_tracker/strategy.py 从 H3 清仓记录、H3恢复状态、备用金安全垫和 reserve.kc50_recovery 人工确认推导科创50备用金回暖候选。</li><li>tests/test_phase_three_strategy.py 覆盖缺少人工确认等待复核、确认后最多1000元候选以及已使用1份时阻断。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="九、科创50备用金回暖规则" data-status="pass">
+    <div class="item-meta">
+      <span class="badge pass">通过</span>
+      <div>T179 · 第 319 行</div>
+      <div>bullet</div>
+      
+      <div>映射：KC50-RESERVE-RECOVERY</div>
+    </div>
+    <div>
+      <div class="item-text">最近5个交易日内至少3日收涨，且收盘价高于5日前收盘价；</div>
+      <ul class="evidence"><li>src/etf_tracker/strategy.py 从 H3 清仓记录、H3恢复状态、备用金安全垫和 reserve.kc50_recovery 人工确认推导科创50备用金回暖候选。</li><li>tests/test_phase_three_strategy.py 覆盖缺少人工确认等待复核、确认后最多1000元候选以及已使用1份时阻断。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="九、科创50备用金回暖规则" data-status="pass">
+    <div class="item-meta">
+      <span class="badge pass">通过</span>
+      <div>T180 · 第 320 行</div>
+      <div>bullet</div>
+      
+      <div>映射：KC50-RESERVE-RECOVERY</div>
+    </div>
+    <div>
+      <div class="item-text">主要宽基指数同步企稳；</div>
+      <ul class="evidence"><li>src/etf_tracker/strategy.py 从 H3 清仓记录、H3恢复状态、备用金安全垫和 reserve.kc50_recovery 人工确认推导科创50备用金回暖候选。</li><li>tests/test_phase_three_strategy.py 覆盖缺少人工确认等待复核、确认后最多1000元候选以及已使用1份时阻断。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="九、科创50备用金回暖规则" data-status="pass">
+    <div class="item-meta">
+      <span class="badge pass">通过</span>
+      <div>T181 · 第 321 行</div>
+      <div>bullet</div>
+      
+      <div>映射：KC50-RESERVE-RECOVERY</div>
+    </div>
+    <div>
+      <div class="item-text">市场跌停数量明显下降；</div>
+      <ul class="evidence"><li>src/etf_tracker/strategy.py 从 H3 清仓记录、H3恢复状态、备用金安全垫和 reserve.kc50_recovery 人工确认推导科创50备用金回暖候选。</li><li>tests/test_phase_three_strategy.py 覆盖缺少人工确认等待复核、确认后最多1000元候选以及已使用1份时阻断。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="九、科创50备用金回暖规则" data-status="pass">
+    <div class="item-meta">
+      <span class="badge pass">通过</span>
+      <div>T182 · 第 322 行</div>
+      <div>bullet</div>
+      
+      <div>映射：KC50-RESERVE-RECOVERY</div>
+    </div>
+    <div>
+      <div class="item-text">反弹不是单日脉冲，而是连续结构。</div>
+      <ul class="evidence"><li>src/etf_tracker/strategy.py 从 H3 清仓记录、H3恢复状态、备用金安全垫和 reserve.kc50_recovery 人工确认推导科创50备用金回暖候选。</li><li>tests/test_phase_three_strategy.py 覆盖缺少人工确认等待复核、确认后最多1000元候选以及已使用1份时阻断。</li></ul>
+      
+    </div>
+  </article>
+<div class="section-title">十、第三层：参考指引与复核频率</div>
+<article class="item-card" data-item-card data-section="十、第三层：参考指引与复核频率" data-status="manual">
+    <div class="item-meta">
+      <span class="badge manual">需人工复核/不适用</span>
+      <div>T183 · 第 326 行</div>
+      <div>paragraph</div>
+      
+      <div>映射：REFERENCE-DEFAULT</div>
+    </div>
+    <div>
+      <div class="item-text">参考指引用于辅助判断，可裁量，但必须记录理由。</div>
+      <ul class="evidence"><li>S1/S2 为参考指引，系统目前以提示和人工复核为主。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="十、第三层：参考指引与复核频率" data-status="manual">
+    <div class="item-meta">
+      <span class="badge manual">需人工复核/不适用</span>
+      <div>T184 · 第 328 行</div>
+      <div>paragraph</div>
+      
+      <div>映射：REFERENCE-DEFAULT</div>
+    </div>
+    <div>
+      <div class="item-text">### 10.1 软规则 S1：相关性监控</div>
+      <ul class="evidence"><li>S1/S2 为参考指引，系统目前以提示和人工复核为主。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="十、第三层：参考指引与复核频率" data-status="manual">
+    <div class="item-meta">
+      <span class="badge manual">需人工复核/不适用</span>
+      <div>T185 · 第 330 行</div>
+      <div>paragraph</div>
+      
+      <div>映射：REFERENCE-DEFAULT</div>
+    </div>
+    <div>
+      <div class="item-text">当A500与科创50过去20个交易日日收益相关系数大于0.85时，视为双标的高度同步。</div>
+      <ul class="evidence"><li>S1/S2 为参考指引，系统目前以提示和人工复核为主。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="十、第三层：参考指引与复核频率" data-status="manual">
+    <div class="item-meta">
+      <span class="badge manual">需人工复核/不适用</span>
+      <div>T186 · 第 332 行</div>
+      <div>paragraph</div>
+      
+      <div>映射：REFERENCE-DEFAULT</div>
+    </div>
+    <div>
+      <div class="item-text">执行要求：</div>
+      <ul class="evidence"><li>S1/S2 为参考指引，系统目前以提示和人工复核为主。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="十、第三层：参考指引与复核频率" data-status="manual">
+    <div class="item-meta">
+      <span class="badge manual">需人工复核/不适用</span>
+      <div>T187 · 第 334 行</div>
+      <div>bullet</div>
+      
+      <div>映射：REFERENCE-DEFAULT</div>
+    </div>
+    <div>
+      <div class="item-text">两标的合计单日新增买入金额不超过800元。</div>
+      <ul class="evidence"><li>S1/S2 为参考指引，系统目前以提示和人工复核为主。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="十、第三层：参考指引与复核频率" data-status="manual">
+    <div class="item-meta">
+      <span class="badge manual">需人工复核/不适用</span>
+      <div>T188 · 第 335 行</div>
+      <div>bullet</div>
+      
+      <div>映射：REFERENCE-DEFAULT</div>
+    </div>
+    <div>
+      <div class="item-text">若A500与科创50同日触发新增买入，优先执行A500，科创50延后1个交易日复核。</div>
+      <ul class="evidence"><li>S1/S2 为参考指引，系统目前以提示和人工复核为主。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="十、第三层：参考指引与复核频率" data-status="manual">
+    <div class="item-meta">
+      <span class="badge manual">需人工复核/不适用</span>
+      <div>T189 · 第 336 行</div>
+      <div>bullet</div>
+      
+      <div>映射：REFERENCE-DEFAULT</div>
+    </div>
+    <div>
+      <div class="item-text">若两标的同时处于补仓或买入状态，新增投入节奏减半；未执行部分进入次日复核，不自动补买。</div>
+      <ul class="evidence"><li>S1/S2 为参考指引，系统目前以提示和人工复核为主。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="十、第三层：参考指引与复核频率" data-status="manual">
+    <div class="item-meta">
+      <span class="badge manual">需人工复核/不适用</span>
+      <div>T190 · 第 337 行</div>
+      <div>bullet</div>
+      
+      <div>映射：REFERENCE-DEFAULT</div>
+    </div>
+    <div>
+      <div class="item-text">“合计单日新增买入金额”按当日计划下单金额计算，不按最终成交金额计算。若ETF最小交易单位导致实际成交略有偏差，以计划金额判断是否触发800元限制。</div>
+      <ul class="evidence"><li>S1/S2 为参考指引，系统目前以提示和人工复核为主。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="十、第三层：参考指引与复核频率" data-status="manual">
+    <div class="item-meta">
+      <span class="badge manual">需人工复核/不适用</span>
+      <div>T191 · 第 338 行</div>
+      <div>bullet</div>
+      
+      <div>映射：REFERENCE-DEFAULT</div>
+    </div>
+    <div>
+      <div class="item-text">S1导致科创50延后1个交易日复核时，若延后复核当日仍满足买入条件，且未触发新的硬规则限制，可在该日开盘后5-15分钟内执行，不再额外顺延至下一交易日。</div>
+      <ul class="evidence"><li>S1/S2 为参考指引，系统目前以提示和人工复核为主。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="十、第三层：参考指引与复核频率" data-status="manual">
+    <div class="item-meta">
+      <span class="badge manual">需人工复核/不适用</span>
+      <div>T192 · 第 339 行</div>
+      <div>bullet</div>
+      
+      <div>映射：REFERENCE-DEFAULT</div>
+    </div>
+    <div>
+      <div class="item-text">延后执行日仍按当日S1状态判断800元限额，不因延后属性而豁免。</div>
+      <ul class="evidence"><li>S1/S2 为参考指引，系统目前以提示和人工复核为主。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="十、第三层：参考指引与复核频率" data-status="manual">
+    <div class="item-meta">
+      <span class="badge manual">需人工复核/不适用</span>
+      <div>T193 · 第 340 行</div>
+      <div>bullet</div>
+      
+      <div>映射：REFERENCE-DEFAULT</div>
+    </div>
+    <div>
+      <div class="item-text">S1为软规则，但若选择不执行，必须在复盘备注中说明原因。</div>
+      <ul class="evidence"><li>S1/S2 为参考指引，系统目前以提示和人工复核为主。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="十、第三层：参考指引与复核频率" data-status="manual">
+    <div class="item-meta">
+      <span class="badge manual">需人工复核/不适用</span>
+      <div>T194 · 第 342 行</div>
+      <div>paragraph</div>
+      
+      <div>映射：REFERENCE-DEFAULT</div>
+    </div>
+    <div>
+      <div class="item-text">### 10.2 软规则 S2：波动率自适应</div>
+      <ul class="evidence"><li>S1/S2 为参考指引，系统目前以提示和人工复核为主。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="十、第三层：参考指引与复核频率" data-status="pass">
+    <div class="item-meta">
+      <span class="badge pass">通过</span>
+      <div>T195 · 第 344 行</div>
+      <div>paragraph</div>
+      
+      <div>映射：VOLATILITY</div>
+    </div>
+    <div>
+      <div class="item-text">当科创50过去20日年化波动率超过50%时，视为高波动阶段。</div>
+      <ul class="evidence"><li>src/etf_tracker/indicators.py 实现 annualized_volatility，src/etf_tracker/strategy.py 输出科创50 20日年化波动率。</li><li>tests/test_indicators.py 覆盖20日年化波动率计算。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="十、第三层：参考指引与复核频率" data-status="manual">
+    <div class="item-meta">
+      <span class="badge manual">需人工复核/不适用</span>
+      <div>T196 · 第 346 行</div>
+      <div>paragraph</div>
+      
+      <div>映射：REFERENCE-DEFAULT</div>
+    </div>
+    <div>
+      <div class="item-text">执行要求：</div>
+      <ul class="evidence"><li>S1/S2 为参考指引，系统目前以提示和人工复核为主。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="十、第三层：参考指引与复核频率" data-status="pass">
+    <div class="item-meta">
+      <span class="badge pass">通过</span>
+      <div>T197 · 第 348 行</div>
+      <div>bullet</div>
+      
+      <div>映射：KC50-TRAILING-PROFIT</div>
+    </div>
+    <div>
+      <div class="item-text">科创50剩余1/3仓位的移动止盈回撤参数，从12%放宽至13%。</div>
+      <ul class="evidence"><li>src/etf_tracker/strategy.py 第二次止盈后追踪阶段高点，按12%/13%回撤或连续2日跌破10日均线提示移动止盈。</li><li>tests/test_phase_two_strategy.py 覆盖移动止盈触发和 S2 高波动13%阈值。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="十、第三层：参考指引与复核频率" data-status="pass">
+    <div class="item-meta">
+      <span class="badge pass">通过</span>
+      <div>T198 · 第 349 行</div>
+      <div>bullet</div>
+      
+      <div>映射：KC50-TRAILING-PROFIT</div>
+    </div>
+    <div>
+      <div class="item-text">若波动率回落至50%及以下，下一次移动止盈复核恢复使用12%。</div>
+      <ul class="evidence"><li>src/etf_tracker/strategy.py 第二次止盈后追踪阶段高点，按12%/13%回撤或连续2日跌破10日均线提示移动止盈。</li><li>tests/test_phase_two_strategy.py 覆盖移动止盈触发和 S2 高波动13%阈值。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="十、第三层：参考指引与复核频率" data-status="pass">
+    <div class="item-meta">
+      <span class="badge pass">通过</span>
+      <div>T199 · 第 350 行</div>
+      <div>bullet</div>
+      
+      <div>映射：KC50-TRAILING-PROFIT</div>
+    </div>
+    <div>
+      <div class="item-text">S2仅调整移动止盈参数，不改变固定止盈、止损和风控减仓规则。</div>
+      <ul class="evidence"><li>src/etf_tracker/strategy.py 第二次止盈后追踪阶段高点，按12%/13%回撤或连续2日跌破10日均线提示移动止盈。</li><li>tests/test_phase_two_strategy.py 覆盖移动止盈触发和 S2 高波动13%阈值。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="十、第三层：参考指引与复核频率" data-status="manual">
+    <div class="item-meta">
+      <span class="badge manual">需人工复核/不适用</span>
+      <div>T200 · 第 354 行</div>
+      <div>table-row</div>
+      
+      <div>映射：REFERENCE-DEFAULT</div>
+    </div>
+    <div>
+      <div class="item-text">备用金间隔缩短 | 每次备用金操作前检查。</div>
+      <ul class="evidence"><li>S1/S2 为参考指引，系统目前以提示和人工复核为主。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="十、第三层：参考指引与复核频率" data-status="manual">
+    <div class="item-meta">
+      <span class="badge manual">需人工复核/不适用</span>
+      <div>T201 · 第 355 行</div>
+      <div>table-row</div>
+      
+      <div>映射：REFERENCE-DEFAULT</div>
+    </div>
+    <div>
+      <div class="item-text">相关性监控S1 | 每日收盘后检查；至少每周记录一次。</div>
+      <ul class="evidence"><li>S1/S2 为参考指引，系统目前以提示和人工复核为主。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="十、第三层：参考指引与复核频率" data-status="manual">
+    <div class="item-meta">
+      <span class="badge manual">需人工复核/不适用</span>
+      <div>T202 · 第 356 行</div>
+      <div>table-row</div>
+      
+      <div>映射：REFERENCE-DEFAULT</div>
+    </div>
+    <div>
+      <div class="item-text">波动率自适应S2 | 每日收盘后检查；持有科创50剩余仓位时必须记录。</div>
+      <ul class="evidence"><li>S1/S2 为参考指引，系统目前以提示和人工复核为主。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="十、第三层：参考指引与复核频率" data-status="manual">
+    <div class="item-meta">
+      <span class="badge manual">需人工复核/不适用</span>
+      <div>T203 · 第 357 行</div>
+      <div>table-row</div>
+      
+      <div>映射：REFERENCE-DEFAULT</div>
+    </div>
+    <div>
+      <div class="item-text">科创50回暖增强信号 | 每日收盘后检查。</div>
+      <ul class="evidence"><li>S1/S2 为参考指引，系统目前以提示和人工复核为主。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="十、第三层：参考指引与复核频率" data-status="manual">
+    <div class="item-meta">
+      <span class="badge manual">需人工复核/不适用</span>
+      <div>T204 · 第 358 行</div>
+      <div>table-row</div>
+      
+      <div>映射：REFERENCE-DEFAULT</div>
+    </div>
+    <div>
+      <div class="item-text">时间止盈与120日复核 | 每20个交易日检查一次。</div>
+      <ul class="evidence"><li>S1/S2 为参考指引，系统目前以提示和人工复核为主。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="十、第三层：参考指引与复核频率" data-status="manual">
+    <div class="item-meta">
+      <span class="badge manual">需人工复核/不适用</span>
+      <div>T205 · 第 359 行</div>
+      <div>table-row</div>
+      
+      <div>映射：REFERENCE-DEFAULT</div>
+    </div>
+    <div>
+      <div class="item-text">季度复核 | 每季度最后一个交易周。</div>
+      <ul class="evidence"><li>S1/S2 为参考指引，系统目前以提示和人工复核为主。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="十、第三层：参考指引与复核频率" data-status="manual">
+    <div class="item-meta">
+      <span class="badge manual">需人工复核/不适用</span>
+      <div>T206 · 第 360 行</div>
+      <div>table-row</div>
+      
+      <div>映射：REFERENCE-DEFAULT</div>
+    </div>
+    <div>
+      <div class="item-text">外部基准比较 | 每月末检查。</div>
+      <ul class="evidence"><li>S1/S2 为参考指引，系统目前以提示和人工复核为主。</li></ul>
+      
+    </div>
+  </article>
+<div class="section-title">十一、策略暂停、失效与重启</div>
+<article class="item-card" data-item-card data-section="十一、策略暂停、失效与重启" data-status="pass">
+    <div class="item-meta">
+      <span class="badge pass">通过</span>
+      <div>T207 · 第 364 行</div>
+      <div>paragraph</div>
+      
+      <div>映射：PHASE4-087-LIFECYCLE-LONG-TERM-RISK</div>
+    </div>
+    <div>
+      <div class="item-text">### 11.1 策略失效规则</div>
+      <ul class="evidence"><li>src/etf_tracker/strategy.py 从成交记录和行情推导 H6 清仓冷却、重启试探仓、H7 连续3笔10日浮亏和长期失效状态。</li><li>tests/test_phase_three_strategy.py 覆盖 H6 第4/第5交易日、重锁指标、试探仓上限、H7、最大回撤、H3轮次和 A500 网格90日空转。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="十一、策略暂停、失效与重启" data-status="pass">
+    <div class="item-meta">
+      <span class="badge pass">通过</span>
+      <div>T208 · 第 368 行</div>
+      <div>table-row</div>
+      
+      <div>映射：H3-NET-VALUE</div>
+    </div>
+    <div>
+      <div class="item-text">科创50连续2轮触发H3应急风控 | 暂停科创50策略至少30个交易日。</div>
+      <ul class="evidence"><li>src/etf_tracker/strategy.py 覆盖1700/1500/1400三档H3净值信号。</li><li>tests/test_strategy.py 覆盖低于1500减仓和低于1400清仓优先级。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="十一、策略暂停、失效与重启" data-status="manual">
+    <div class="item-meta">
+      <span class="badge manual">需人工复核/不适用</span>
+      <div>T209 · 第 369 行</div>
+      <div>table-row</div>
+      
+      <div>映射：PHASE4-088-MANUAL-REVIEW-BOUNDARY</div>
+    </div>
+    <div>
+      <div class="item-text">A500网格连续90个交易日无有效买卖成交 | 季度复核是否调整网格间距或暂停策略。</div>
+      <ul class="evidence"><li>季度复核、估值平台选择、截图存档、策略有效性最终判断和跨池例外属于人工复核边界，系统只展示证据和提醒。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="十一、策略暂停、失效与重启" data-status="pass">
+    <div class="item-meta">
+      <span class="badge pass">通过</span>
+      <div>T210 · 第 370 行</div>
+      <div>table-row</div>
+      
+      <div>映射：PHASE4-089-PROFIT-LOCK</div>
+    </div>
+    <div>
+      <div class="item-text">总账户最大回撤超过12% | 暂停所有新增买入，只允许止盈、减仓和复核。</div>
+      <ul class="evidence"><li>src/etf_tracker/strategy.py 将 locked_cash 计入账户价值但排除在交易资金池外，并在累计收益达15%时提示收益锁定。</li><li>tests/test_phase_three_strategy.py 覆盖不可交易现金池展示、收益锁定建议金额和资金池隔离。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="十一、策略暂停、失效与重启" data-status="manual">
+    <div class="item-meta">
+      <span class="badge manual">需人工复核/不适用</span>
+      <div>T211 · 第 371 行</div>
+      <div>table-row</div>
+      
+      <div>映射：PHASE4-090-MANUAL-REVIEW-BOUNDARY</div>
+    </div>
+    <div>
+      <div class="item-text">策略运行6个月后，总账户收益率显著低于同期沪深300指数涨跌幅或货币基金收益中较高者 | 重新评估策略有效性。</div>
+      <ul class="evidence"><li>季度复核、估值平台选择、截图存档、策略有效性最终判断和跨池例外属于人工复核边界，系统只展示证据和提醒。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="十一、策略暂停、失效与重启" data-status="pass">
+    <div class="item-meta">
+      <span class="badge pass">通过</span>
+      <div>T212 · 第 372 行</div>
+      <div>table-row</div>
+      
+      <div>映射：PHASE4-091-LIFECYCLE-LONG-TERM-RISK</div>
+    </div>
+    <div>
+      <div class="item-text">单标的连续3笔新增买入触发10日浮亏规则 | 暂停该标的新增买入，专项复核。</div>
+      <ul class="evidence"><li>src/etf_tracker/strategy.py 从成交记录和行情推导 H6 清仓冷却、重启试探仓、H7 连续3笔10日浮亏和长期失效状态。</li><li>tests/test_phase_three_strategy.py 覆盖 H6 第4/第5交易日、重锁指标、试探仓上限、H7、最大回撤、H3轮次和 A500 网格90日空转。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="十一、策略暂停、失效与重启" data-status="pass">
+    <div class="item-meta">
+      <span class="badge pass">通过</span>
+      <div>T213 · 第 374 行</div>
+      <div>paragraph</div>
+      
+      <div>映射：PHASE4-092-LIFECYCLE-LONG-TERM-RISK</div>
+    </div>
+    <div>
+      <div class="item-text">### 11.2 清仓后重启</div>
+      <ul class="evidence"><li>src/etf_tracker/strategy.py 从成交记录和行情推导 H6 清仓冷却、重启试探仓、H7 连续3笔10日浮亏和长期失效状态。</li><li>tests/test_phase_three_strategy.py 覆盖 H6 第4/第5交易日、重锁指标、试探仓上限、H7、最大回撤、H3轮次和 A500 网格90日空转。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="十一、策略暂停、失效与重启" data-status="pass">
+    <div class="item-meta">
+      <span class="badge pass">通过</span>
+      <div>T214 · 第 376 行</div>
+      <div>bullet</div>
+      
+      <div>映射：PHASE4-093-LIFECYCLE-LONG-TERM-RISK</div>
+    </div>
+    <div>
+      <div class="item-text">任一策略清仓后，至少等待5个交易日。</div>
+      <ul class="evidence"><li>src/etf_tracker/strategy.py 从成交记录和行情推导 H6 清仓冷却、重启试探仓、H7 连续3笔10日浮亏和长期失效状态。</li><li>tests/test_phase_three_strategy.py 覆盖 H6 第4/第5交易日、重锁指标、试探仓上限、H7、最大回撤、H3轮次和 A500 网格90日空转。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="十一、策略暂停、失效与重启" data-status="pass">
+    <div class="item-meta">
+      <span class="badge pass">通过</span>
+      <div>T215 · 第 377 行</div>
+      <div>bullet</div>
+      
+      <div>映射：PHASE4-094-LIFECYCLE-LONG-TERM-RISK</div>
+    </div>
+    <div>
+      <div class="item-text">重启前必须重新锁定基准价、阶段高点、网格上下沿和资金池余额。</div>
+      <ul class="evidence"><li>src/etf_tracker/strategy.py 从成交记录和行情推导 H6 清仓冷却、重启试探仓、H7 连续3笔10日浮亏和长期失效状态。</li><li>tests/test_phase_three_strategy.py 覆盖 H6 第4/第5交易日、重锁指标、试探仓上限、H7、最大回撤、H3轮次和 A500 网格90日空转。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="十一、策略暂停、失效与重启" data-status="pass">
+    <div class="item-meta">
+      <span class="badge pass">通过</span>
+      <div>T216 · 第 378 行</div>
+      <div>bullet</div>
+      
+      <div>映射：PHASE4-095-LIFECYCLE-LONG-TERM-RISK</div>
+    </div>
+    <div>
+      <div class="item-text">重启时第一笔买入金额不超过正常首笔的50%，作为试探仓。</div>
+      <ul class="evidence"><li>src/etf_tracker/strategy.py 从成交记录和行情推导 H6 清仓冷却、重启试探仓、H7 连续3笔10日浮亏和长期失效状态。</li><li>tests/test_phase_three_strategy.py 覆盖 H6 第4/第5交易日、重锁指标、试探仓上限、H7、最大回撤、H3轮次和 A500 网格90日空转。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="十一、策略暂停、失效与重启" data-status="pass">
+    <div class="item-meta">
+      <span class="badge pass">通过</span>
+      <div>T217 · 第 379 行</div>
+      <div>bullet</div>
+      
+      <div>映射：PHASE4-096-LIFECYCLE-LONG-TERM-RISK</div>
+    </div>
+    <div>
+      <div class="item-text">试探仓确认有效后，视为本轮第一笔买入的一部分。</div>
+      <ul class="evidence"><li>src/etf_tracker/strategy.py 从成交记录和行情推导 H6 清仓冷却、重启试探仓、H7 连续3笔10日浮亏和长期失效状态。</li><li>tests/test_phase_three_strategy.py 覆盖 H6 第4/第5交易日、重锁指标、试探仓上限、H7、最大回撤、H3轮次和 A500 网格90日空转。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="十一、策略暂停、失效与重启" data-status="pass">
+    <div class="item-meta">
+      <span class="badge pass">通过</span>
+      <div>T218 · 第 380 行</div>
+      <div>bullet</div>
+      
+      <div>映射：PHASE4-097-LIFECYCLE-LONG-TERM-RISK</div>
+    </div>
+    <div>
+      <div class="item-text">恢复正常节奏时，第一笔剩余金额可在下一个交易日补足；若试探仓失效或触发暂停规则，则不补足。</div>
+      <ul class="evidence"><li>src/etf_tracker/strategy.py 从成交记录和行情推导 H6 清仓冷却、重启试探仓、H7 连续3笔10日浮亏和长期失效状态。</li><li>tests/test_phase_three_strategy.py 覆盖 H6 第4/第5交易日、重锁指标、试探仓上限、H7、最大回撤、H3轮次和 A500 网格90日空转。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="十一、策略暂停、失效与重启" data-status="pass">
+    <div class="item-meta">
+      <span class="badge pass">通过</span>
+      <div>T219 · 第 382 行</div>
+      <div>paragraph</div>
+      
+      <div>映射：PHASE4-098-PROFIT-LOCK</div>
+    </div>
+    <div>
+      <div class="item-text">### 11.3 收益锁定</div>
+      <ul class="evidence"><li>src/etf_tracker/strategy.py 将 locked_cash 计入账户价值但排除在交易资金池外，并在累计收益达15%时提示收益锁定。</li><li>tests/test_phase_three_strategy.py 覆盖不可交易现金池展示、收益锁定建议金额和资金池隔离。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="十一、策略暂停、失效与重启" data-status="pass">
+    <div class="item-meta">
+      <span class="badge pass">通过</span>
+      <div>T220 · 第 386 行</div>
+      <div>table-row</div>
+      
+      <div>映射：PHASE4-099-PROFIT-LOCK</div>
+    </div>
+    <div>
+      <div class="item-text">总账户累计收益达到初始本金15% | 至少提取收益的1/3转入不可交易现金池。</div>
+      <ul class="evidence"><li>src/etf_tracker/strategy.py 将 locked_cash 计入账户价值但排除在交易资金池外，并在累计收益达15%时提示收益锁定。</li><li>tests/test_phase_three_strategy.py 覆盖不可交易现金池展示、收益锁定建议金额和资金池隔离。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="十一、策略暂停、失效与重启" data-status="pass">
+    <div class="item-meta">
+      <span class="badge pass">通过</span>
+      <div>T221 · 第 388 行</div>
+      <div>paragraph</div>
+      
+      <div>映射：PHASE4-100-PROFIT-LOCK</div>
+    </div>
+    <div>
+      <div class="item-text">不可交易现金池定义：</div>
+      <ul class="evidence"><li>src/etf_tracker/strategy.py 将 locked_cash 计入账户价值但排除在交易资金池外，并在累计收益达15%时提示收益锁定。</li><li>tests/test_phase_three_strategy.py 覆盖不可交易现金池展示、收益锁定建议金额和资金池隔离。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="十一、策略暂停、失效与重启" data-status="manual">
+    <div class="item-meta">
+      <span class="badge manual">需人工复核/不适用</span>
+      <div>T222 · 第 390 行</div>
+      <div>bullet</div>
+      
+      <div>映射：PHASE4-101-MANUAL-REVIEW-BOUNDARY</div>
+    </div>
+    <div>
+      <div class="item-text">可放入货币基金、银行活期或其他低风险现金管理工具；</div>
+      <ul class="evidence"><li>季度复核、估值平台选择、截图存档、策略有效性最终判断和跨池例外属于人工复核边界，系统只展示证据和提醒。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="十一、策略暂停、失效与重启" data-status="pass">
+    <div class="item-meta">
+      <span class="badge pass">通过</span>
+      <div>T223 · 第 391 行</div>
+      <div>bullet</div>
+      
+      <div>映射：PHASE4-102-PROFIT-LOCK</div>
+    </div>
+    <div>
+      <div class="item-text">不得用于任何主动交易；</div>
+      <ul class="evidence"><li>src/etf_tracker/strategy.py 将 locked_cash 计入账户价值但排除在交易资金池外，并在累计收益达15%时提示收益锁定。</li><li>tests/test_phase_three_strategy.py 覆盖不可交易现金池展示、收益锁定建议金额和资金池隔离。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="十一、策略暂停、失效与重启" data-status="manual">
+    <div class="item-meta">
+      <span class="badge manual">需人工复核/不适用</span>
+      <div>T224 · 第 392 行</div>
+      <div>bullet</div>
+      
+      <div>映射：PHASE4-103-MANUAL-REVIEW-BOUNDARY</div>
+    </div>
+    <div>
+      <div class="item-text">只有在季度复核或策略重启时，才可重新讨论是否调配。</div>
+      <ul class="evidence"><li>季度复核、估值平台选择、截图存档、策略有效性最终判断和跨池例外属于人工复核边界，系统只展示证据和提醒。</li></ul>
+      
+    </div>
+  </article>
+<div class="section-title">十二、执行记录表</div>
+<article class="item-card" data-item-card data-section="十二、执行记录表" data-status="pass">
+    <div class="item-meta">
+      <span class="badge pass">通过</span>
+      <div>T225 · 第 396 行</div>
+      <div>paragraph</div>
+      
+      <div>映射：PHASE4-104-TRADE-RECORD-MISSING</div>
+    </div>
+    <div>
+      <div class="item-text">每次交易后记录以下内容：</div>
+      <ul class="evidence"><li>Trade 模型、Python 解析器、Worker normalization 和 docs/index.html 已支持 signal_date、execution_date、trigger_rule、cash_balance、risk_gate_triggered、risk_gate_snapshot。</li><li>tests/test_trades.py、tests/worker.test.mjs 和 tests/test_report.py 覆盖新旧成交字段兼容、保存、展示和合规警告。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="十二、执行记录表" data-status="pass">
+    <div class="item-meta">
+      <span class="badge pass">通过</span>
+      <div>T226 · 第 400 行</div>
+      <div>table-row</div>
+      
+      <div>映射：TRADE-RECORD-MISSING</div>
+    </div>
+    <div>
+      <div class="item-text">信号确认日 | 收盘价或条件单触发确认日期。</div>
+      <ul class="evidence"><li>Trade 模型、Python解析器、Worker normalization 和 docs/index.html 已支持 signal_date、execution_date、trigger_rule、cash_balance、risk_gate_triggered、risk_gate_snapshot。</li><li>tests/test_trades.py 与 tests/worker.test.mjs 覆盖新字段和旧 date 兼容。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="十二、执行记录表" data-status="pass">
+    <div class="item-meta">
+      <span class="badge pass">通过</span>
+      <div>T227 · 第 401 行</div>
+      <div>table-row</div>
+      
+      <div>映射：TRADE-RECORD-MISSING</div>
+    </div>
+    <div>
+      <div class="item-text">实际执行日 | 实际成交日期。</div>
+      <ul class="evidence"><li>Trade 模型、Python解析器、Worker normalization 和 docs/index.html 已支持 signal_date、execution_date、trigger_rule、cash_balance、risk_gate_triggered、risk_gate_snapshot。</li><li>tests/test_trades.py 与 tests/worker.test.mjs 覆盖新字段和旧 date 兼容。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="十二、执行记录表" data-status="pass">
+    <div class="item-meta">
+      <span class="badge pass">通过</span>
+      <div>T228 · 第 402 行</div>
+      <div>table-row</div>
+      
+      <div>映射：TRADE-RECORD-BASIC</div>
+    </div>
+    <div>
+      <div class="item-text">标的 | 563360或588000。</div>
+      <ul class="evidence"><li>Worker、页面和 Trade 模型支持 symbol、module、price、amount、shares、fee、note。</li><li>tests/worker.test.mjs 覆盖新增、修改、删除和字段保存。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="十二、执行记录表" data-status="pass">
+    <div class="item-meta">
+      <span class="badge pass">通过</span>
+      <div>T229 · 第 403 行</div>
+      <div>table-row</div>
+      
+      <div>映射：TRADE-RECORD-BASIC</div>
+    </div>
+    <div>
+      <div class="item-text">策略模块 | 常规网格、底仓趋势止盈、科创50波段、备用金、风控减仓等。</div>
+      <ul class="evidence"><li>Worker、页面和 Trade 模型支持 symbol、module、price、amount、shares、fee、note。</li><li>tests/worker.test.mjs 覆盖新增、修改、删除和字段保存。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="十二、执行记录表" data-status="pass">
+    <div class="item-meta">
+      <span class="badge pass">通过</span>
+      <div>T230 · 第 404 行</div>
+      <div>table-row</div>
+      
+      <div>映射：KC50-PROFIT-TAKE</div>
+    </div>
+    <div>
+      <div class="item-text">触发规则 | 写明对应条款，例如“A500第2格补仓”或“科创50盈利15%止盈”。</div>
+      <ul class="evidence"><li>src/etf_tracker/strategy.py 按已记录止盈状态避免重复提示15%/30%固定止盈。</li><li>tests/test_phase_two_strategy.py 覆盖15%固定止盈和已记录止盈后的不重复。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="十二、执行记录表" data-status="pass">
+    <div class="item-meta">
+      <span class="badge pass">通过</span>
+      <div>T231 · 第 405 行</div>
+      <div>table-row</div>
+      
+      <div>映射：TRADE-RECORD-BASIC</div>
+    </div>
+    <div>
+      <div class="item-text">执行价格 | 记录成交均价。</div>
+      <ul class="evidence"><li>Worker、页面和 Trade 模型支持 symbol、module、price、amount、shares、fee、note。</li><li>tests/worker.test.mjs 覆盖新增、修改、删除和字段保存。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="十二、执行记录表" data-status="pass">
+    <div class="item-meta">
+      <span class="badge pass">通过</span>
+      <div>T232 · 第 406 行</div>
+      <div>table-row</div>
+      
+      <div>映射：TRADE-RECORD-BASIC</div>
+    </div>
+    <div>
+      <div class="item-text">执行金额 | 记录买入或卖出金额。</div>
+      <ul class="evidence"><li>Worker、页面和 Trade 模型支持 symbol、module、price、amount、shares、fee、note。</li><li>tests/worker.test.mjs 覆盖新增、修改、删除和字段保存。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="十二、执行记录表" data-status="pass">
+    <div class="item-meta">
+      <span class="badge pass">通过</span>
+      <div>T233 · 第 407 行</div>
+      <div>table-row</div>
+      
+      <div>映射：TRADE-RECORD-BASIC</div>
+    </div>
+    <div>
+      <div class="item-text">执行份额 | 记录实际成交份额。</div>
+      <ul class="evidence"><li>Worker、页面和 Trade 模型支持 symbol、module、price、amount、shares、fee、note。</li><li>tests/worker.test.mjs 覆盖新增、修改、删除和字段保存。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="十二、执行记录表" data-status="pass">
+    <div class="item-meta">
+      <span class="badge pass">通过</span>
+      <div>T234 · 第 408 行</div>
+      <div>table-row</div>
+      
+      <div>映射：TRADE-RECORD-BASIC</div>
+    </div>
+    <div>
+      <div class="item-text">交易成本 | 记录佣金、最低佣金约束和其他费用。</div>
+      <ul class="evidence"><li>Worker、页面和 Trade 模型支持 symbol、module、price、amount、shares、fee、note。</li><li>tests/worker.test.mjs 覆盖新增、修改、删除和字段保存。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="十二、执行记录表" data-status="pass">
+    <div class="item-meta">
+      <span class="badge pass">通过</span>
+      <div>T235 · 第 409 行</div>
+      <div>table-row</div>
+      
+      <div>映射：TRADE-RECORD-MISSING</div>
+    </div>
+    <div>
+      <div class="item-text">现金余额 | 分别更新对应资金池现金余额。</div>
+      <ul class="evidence"><li>Trade 模型、Python解析器、Worker normalization 和 docs/index.html 已支持 signal_date、execution_date、trigger_rule、cash_balance、risk_gate_triggered、risk_gate_snapshot。</li><li>tests/test_trades.py 与 tests/worker.test.mjs 覆盖新字段和旧 date 兼容。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="十二、执行记录表" data-status="pass">
+    <div class="item-meta">
+      <span class="badge pass">通过</span>
+      <div>T236 · 第 410 行</div>
+      <div>table-row</div>
+      
+      <div>映射：TRADE-RECORD-MISSING</div>
+    </div>
+    <div>
+      <div class="item-text">是否触发风险闸门 | 是/否；若是，附检查表。</div>
+      <ul class="evidence"><li>Trade 模型、Python解析器、Worker normalization 和 docs/index.html 已支持 signal_date、execution_date、trigger_rule、cash_balance、risk_gate_triggered、risk_gate_snapshot。</li><li>tests/test_trades.py 与 tests/worker.test.mjs 覆盖新字段和旧 date 兼容。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="十二、执行记录表" data-status="pass">
+    <div class="item-meta">
+      <span class="badge pass">通过</span>
+      <div>T237 · 第 411 行</div>
+      <div>table-row</div>
+      
+      <div>映射：TRADE-RECORD-BASIC</div>
+    </div>
+    <div>
+      <div class="item-text">复盘备注 | 若未按规则执行，必须说明原因。</div>
+      <ul class="evidence"><li>Worker、页面和 Trade 模型支持 symbol、module、price、amount、shares、fee、note。</li><li>tests/worker.test.mjs 覆盖新增、修改、删除和字段保存。</li></ul>
+      
+    </div>
+  </article>
+<div class="section-title">十三、季度复核清单</div>
+<article class="item-card" data-item-card data-section="十三、季度复核清单" data-status="manual">
+    <div class="item-meta">
+      <span class="badge manual">需人工复核/不适用</span>
+      <div>T238 · 第 417 行</div>
+      <div>table-row</div>
+      
+      <div>映射：REVIEW-DEFAULT</div>
+    </div>
+    <div>
+      <div class="item-text">A500标的代码 | 固定为563360；复核是否仍跟踪中证A500指数，是否存在代码或指数变更。</div>
+      <ul class="evidence"><li>季度复核依赖人工确认和外部材料，当前系统不应自动替代复核人。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="十三、季度复核清单" data-status="manual">
+    <div class="item-meta">
+      <span class="badge manual">需人工复核/不适用</span>
+      <div>T239 · 第 418 行</div>
+      <div>table-row</div>
+      
+      <div>映射：VALUATION-SOURCE</div>
+    </div>
+    <div>
+      <div class="item-text">估值数据源 | 是否仍使用同一平台、同一口径和同一查询时点。</div>
+      <ul class="evidence"><li>src/etf_tracker/valuation.py 当前只输出估值分位自动源未锁定提示。</li><li>估值来源和截图需交付前人工锁定。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="十三、季度复核清单" data-status="manual">
+    <div class="item-meta">
+      <span class="badge manual">需人工复核/不适用</span>
+      <div>T240 · 第 419 行</div>
+      <div>table-row</div>
+      
+      <div>映射：REVIEW-DEFAULT</div>
+    </div>
+    <div>
+      <div class="item-text">A500网格上沿 | 根据估值分位重新确认，只影响新增条件单。</div>
+      <ul class="evidence"><li>季度复核依赖人工确认和外部材料，当前系统不应自动替代复核人。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="十三、季度复核清单" data-status="manual">
+    <div class="item-meta">
+      <span class="badge manual">需人工复核/不适用</span>
+      <div>T241 · 第 420 行</div>
+      <div>table-row</div>
+      
+      <div>映射：REVIEW-DEFAULT</div>
+    </div>
+    <div>
+      <div class="item-text">A500网格下沿 | 根据估值分位重新确认，只影响新增条件单。</div>
+      <ul class="evidence"><li>季度复核依赖人工确认和外部材料，当前系统不应自动替代复核人。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="十三、季度复核清单" data-status="manual">
+    <div class="item-meta">
+      <span class="badge manual">需人工复核/不适用</span>
+      <div>T242 · 第 421 行</div>
+      <div>table-row</div>
+      
+      <div>映射：REVIEW-DEFAULT</div>
+    </div>
+    <div>
+      <div class="item-text">A500备用金仓位 | 是否止盈、继续持有、认亏退出或降级长持。</div>
+      <ul class="evidence"><li>季度复核依赖人工确认和外部材料，当前系统不应自动替代复核人。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="十三、季度复核清单" data-status="manual">
+    <div class="item-meta">
+      <span class="badge manual">需人工复核/不适用</span>
+      <div>T243 · 第 422 行</div>
+      <div>table-row</div>
+      
+      <div>映射：REVIEW-DEFAULT</div>
+    </div>
+    <div>
+      <div class="item-text">科创50估值分位 | 是否仍适合当前回撤档位和买入节奏。</div>
+      <ul class="evidence"><li>季度复核依赖人工确认和外部材料，当前系统不应自动替代复核人。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="十三、季度复核清单" data-status="manual">
+    <div class="item-meta">
+      <span class="badge manual">需人工复核/不适用</span>
+      <div>T244 · 第 423 行</div>
+      <div>table-row</div>
+      
+      <div>映射：REVIEW-DEFAULT</div>
+    </div>
+    <div>
+      <div class="item-text">科创50长期持仓 | 是否触发60日或120日时间复核。</div>
+      <ul class="evidence"><li>季度复核依赖人工确认和外部材料，当前系统不应自动替代复核人。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="十三、季度复核清单" data-status="manual">
+    <div class="item-meta">
+      <span class="badge manual">需人工复核/不适用</span>
+      <div>T245 · 第 424 行</div>
+      <div>table-row</div>
+      
+      <div>映射：REVIEW-DEFAULT</div>
+    </div>
+    <div>
+      <div class="item-text">总风险闸门 | 70%警戒线和85%绝对上限是否被触及。</div>
+      <ul class="evidence"><li>季度复核依赖人工确认和外部材料，当前系统不应自动替代复核人。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="十三、季度复核清单" data-status="manual">
+    <div class="item-meta">
+      <span class="badge manual">需人工复核/不适用</span>
+      <div>T246 · 第 425 行</div>
+      <div>table-row</div>
+      
+      <div>映射：REVIEW-DEFAULT</div>
+    </div>
+    <div>
+      <div class="item-text">策略有效性 | 与沪深300和货币基金收益比较。</div>
+      <ul class="evidence"><li>季度复核依赖人工确认和外部材料，当前系统不应自动替代复核人。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="十三、季度复核清单" data-status="manual">
+    <div class="item-meta">
+      <span class="badge manual">需人工复核/不适用</span>
+      <div>T247 · 第 426 行</div>
+      <div>table-row</div>
+      
+      <div>映射：REVIEW-DEFAULT</div>
+    </div>
+    <div>
+      <div class="item-text">交易成本 | 单笔佣金、最低佣金和滑点是否侵蚀网格利润。</div>
+      <ul class="evidence"><li>季度复核依赖人工确认和外部材料，当前系统不应自动替代复核人。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="十三、季度复核清单" data-status="manual">
+    <div class="item-meta">
+      <span class="badge manual">需人工复核/不适用</span>
+      <div>T248 · 第 427 行</div>
+      <div>table-row</div>
+      
+      <div>映射：REVIEW-DEFAULT</div>
+    </div>
+    <div>
+      <div class="item-text">执行纪律 | 是否有未记录的主观交易或规则外操作。</div>
+      <ul class="evidence"><li>季度复核依赖人工确认和外部材料，当前系统不应自动替代复核人。</li></ul>
+      
+    </div>
+  </article>
+<div class="section-title">十四、执行前设置与成本附录</div>
+<article class="item-card" data-item-card data-section="十四、执行前设置与成本附录" data-status="manual">
+    <div class="item-meta">
+      <span class="badge manual">需人工复核/不适用</span>
+      <div>T249 · 第 431 行</div>
+      <div>paragraph</div>
+      
+      <div>映射：VALUATION-SOURCE</div>
+    </div>
+    <div>
+      <div class="item-text">### 14.1 估值数据源设置</div>
+      <ul class="evidence"><li>src/etf_tracker/valuation.py 当前只输出估值分位自动源未锁定提示。</li><li>估值来源和截图需交付前人工锁定。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="十四、执行前设置与成本附录" data-status="manual">
+    <div class="item-meta">
+      <span class="badge manual">需人工复核/不适用</span>
+      <div>T250 · 第 433 行</div>
+      <div>paragraph</div>
+      
+      <div>映射：VALUATION-SOURCE</div>
+    </div>
+    <div>
+      <div class="item-text">首次执行前必须填写并锁定估值数据源。后续复核应尽量保持同一平台、同一口径和同一查询时点，避免因数据源切换导致规则漂移。</div>
+      <ul class="evidence"><li>src/etf_tracker/valuation.py 当前只输出估值分位自动源未锁定提示。</li><li>估值来源和截图需交付前人工锁定。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="十四、执行前设置与成本附录" data-status="manual">
+    <div class="item-meta">
+      <span class="badge manual">需人工复核/不适用</span>
+      <div>T251 · 第 437 行</div>
+      <div>table-row</div>
+      
+      <div>映射：VALUATION-SOURCE</div>
+    </div>
+    <div>
+      <div class="item-text">A500估值平台 | ______</div>
+      <ul class="evidence"><li>src/etf_tracker/valuation.py 当前只输出估值分位自动源未锁定提示。</li><li>估值来源和截图需交付前人工锁定。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="十四、执行前设置与成本附录" data-status="manual">
+    <div class="item-meta">
+      <span class="badge manual">需人工复核/不适用</span>
+      <div>T252 · 第 438 行</div>
+      <div>table-row</div>
+      
+      <div>映射：VALUATION-SOURCE</div>
+    </div>
+    <div>
+      <div class="item-text">科创50估值平台 | ______</div>
+      <ul class="evidence"><li>src/etf_tracker/valuation.py 当前只输出估值分位自动源未锁定提示。</li><li>估值来源和截图需交付前人工锁定。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="十四、执行前设置与成本附录" data-status="manual">
+    <div class="item-meta">
+      <span class="badge manual">需人工复核/不适用</span>
+      <div>T253 · 第 439 行</div>
+      <div>table-row</div>
+      
+      <div>映射：SETUP-DEFAULT</div>
+    </div>
+    <div>
+      <div class="item-text">估值口径 | □ PE分位 □ PB分位 □ PE/PB均参考</div>
+      <ul class="evidence"><li>估值平台、券商费率、截图或数据存档方式需要交付前人工填写和确认。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="十四、执行前设置与成本附录" data-status="manual">
+    <div class="item-meta">
+      <span class="badge manual">需人工复核/不适用</span>
+      <div>T254 · 第 440 行</div>
+      <div>table-row</div>
+      
+      <div>映射：SETUP-DEFAULT</div>
+    </div>
+    <div>
+      <div class="item-text">查询时点 | □ 收盘后 □ 次日执行前 □ 其他：______</div>
+      <ul class="evidence"><li>估值平台、券商费率、截图或数据存档方式需要交付前人工填写和确认。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="十四、执行前设置与成本附录" data-status="manual">
+    <div class="item-meta">
+      <span class="badge manual">需人工复核/不适用</span>
+      <div>T255 · 第 441 行</div>
+      <div>table-row</div>
+      
+      <div>映射：VALUATION-SOURCE</div>
+    </div>
+    <div>
+      <div class="item-text">截图或数据存档方式 | ______</div>
+      <ul class="evidence"><li>src/etf_tracker/valuation.py 当前只输出估值分位自动源未锁定提示。</li><li>估值来源和截图需交付前人工锁定。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="十四、执行前设置与成本附录" data-status="manual">
+    <div class="item-meta">
+      <span class="badge manual">需人工复核/不适用</span>
+      <div>T256 · 第 443 行</div>
+      <div>paragraph</div>
+      
+      <div>映射：SETUP-DEFAULT</div>
+    </div>
+    <div>
+      <div class="item-text">使用原则：</div>
+      <ul class="evidence"><li>估值平台、券商费率、截图或数据存档方式需要交付前人工填写和确认。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="十四、执行前设置与成本附录" data-status="manual">
+    <div class="item-meta">
+      <span class="badge manual">需人工复核/不适用</span>
+      <div>T257 · 第 445 行</div>
+      <div>bullet</div>
+      
+      <div>映射：SETUP-DEFAULT</div>
+    </div>
+    <div>
+      <div class="item-text">A500备用金条件中的估值分位，以A500锁定数据源为准。</div>
+      <ul class="evidence"><li>估值平台、券商费率、截图或数据存档方式需要交付前人工填写和确认。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="十四、执行前设置与成本附录" data-status="pass">
+    <div class="item-meta">
+      <span class="badge pass">通过</span>
+      <div>T258 · 第 446 行</div>
+      <div>bullet</div>
+      
+      <div>映射：KC50-FOURTH-BUY</div>
+    </div>
+    <div>
+      <div class="item-text">科创50第4笔过滤和备用金回暖条件，PE或PB至少一项满足阈值即可，但必须在记录中写明采用PE还是PB。</div>
+      <ul class="evidence"><li>src/etf_tracker/strategy.py 第4笔要求已有第三笔、近5日不创新低、站上5日均线且 PE/PB 至少一项低于25%。</li><li>tests/test_phase_two_strategy.py 覆盖第4笔过滤条件通过后的候选。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="十四、执行前设置与成本附录" data-status="pass">
+    <div class="item-meta">
+      <span class="badge pass">通过</span>
+      <div>T259 · 第 447 行</div>
+      <div>bullet</div>
+      
+      <div>映射：KC50-VALUATION-CROSS</div>
+    </div>
+    <div>
+      <div class="item-text">科创50买入信号的估值交叉验证，原则上使用信号确认日收盘后的估值数据。若选择次日执行前查询，必须确认数据对应信号确认日，而不是次日盘中或其他滞后口径。</div>
+      <ul class="evidence"><li>src/etf_tracker/strategy.py 使用手工估值分位判断第一笔22%触发时是否延后，并允许25%回撤重新触发。</li><li>tests/test_phase_two_strategy.py 覆盖估值高于50%延后和更深回撤触发。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="十四、执行前设置与成本附录" data-status="manual">
+    <div class="item-meta">
+      <span class="badge manual">需人工复核/不适用</span>
+      <div>T260 · 第 448 行</div>
+      <div>bullet</div>
+      
+      <div>映射：VALUATION-SOURCE</div>
+    </div>
+    <div>
+      <div class="item-text">若数据源不可用，暂停依赖估值分位的新增买入，只保留不依赖估值的止盈、止损和风控动作。</div>
+      <ul class="evidence"><li>src/etf_tracker/valuation.py 当前只输出估值分位自动源未锁定提示。</li><li>估值来源和截图需交付前人工锁定。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="十四、执行前设置与成本附录" data-status="manual">
+    <div class="item-meta">
+      <span class="badge manual">需人工复核/不适用</span>
+      <div>T261 · 第 450 行</div>
+      <div>paragraph</div>
+      
+      <div>映射：SETUP-DEFAULT</div>
+    </div>
+    <div>
+      <div class="item-text">### 14.2 手续费与最小交易单位估算</div>
+      <ul class="evidence"><li>估值平台、券商费率、截图或数据存档方式需要交付前人工填写和确认。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="十四、执行前设置与成本附录" data-status="manual">
+    <div class="item-meta">
+      <span class="badge manual">需人工复核/不适用</span>
+      <div>T262 · 第 452 行</div>
+      <div>paragraph</div>
+      
+      <div>映射：SETUP-DEFAULT</div>
+    </div>
+    <div>
+      <div class="item-text">小额网格和小额波段交易对手续费敏感。正式挂单前必须确认券商场内ETF佣金、是否存在最低佣金、ETF最小交易单位和当前价格。</div>
+      <ul class="evidence"><li>估值平台、券商费率、截图或数据存档方式需要交付前人工填写和确认。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="十四、执行前设置与成本附录" data-status="manual">
+    <div class="item-meta">
+      <span class="badge manual">需人工复核/不适用</span>
+      <div>T263 · 第 456 行</div>
+      <div>table-row</div>
+      
+      <div>映射：SETUP-DEFAULT</div>
+    </div>
+    <div>
+      <div class="item-text">券商ETF佣金率 | 万分之一</div>
+      <ul class="evidence"><li>估值平台、券商费率、截图或数据存档方式需要交付前人工填写和确认。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="十四、执行前设置与成本附录" data-status="manual">
+    <div class="item-meta">
+      <span class="badge manual">需人工复核/不适用</span>
+      <div>T264 · 第 457 行</div>
+      <div>table-row</div>
+      
+      <div>映射：SETUP-DEFAULT</div>
+    </div>
+    <div>
+      <div class="item-text">是否有单笔最低佣金 | 免五，即不设单笔5元最低佣金</div>
+      <ul class="evidence"><li>估值平台、券商费率、截图或数据存档方式需要交付前人工填写和确认。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="十四、执行前设置与成本附录" data-status="manual">
+    <div class="item-meta">
+      <span class="badge manual">需人工复核/不适用</span>
+      <div>T265 · 第 458 行</div>
+      <div>table-row</div>
+      
+      <div>映射：SETUP-DEFAULT</div>
+    </div>
+    <div>
+      <div class="item-text">ETF最小交易单位 | ______ 份</div>
+      <ul class="evidence"><li>估值平台、券商费率、截图或数据存档方式需要交付前人工填写和确认。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="十四、执行前设置与成本附录" data-status="manual">
+    <div class="item-meta">
+      <span class="badge manual">需人工复核/不适用</span>
+      <div>T266 · 第 459 行</div>
+      <div>table-row</div>
+      
+      <div>映射：SETUP-DEFAULT</div>
+    </div>
+    <div>
+      <div class="item-text">563360当前价格 | ______</div>
+      <ul class="evidence"><li>估值平台、券商费率、截图或数据存档方式需要交付前人工填写和确认。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="十四、执行前设置与成本附录" data-status="manual">
+    <div class="item-meta">
+      <span class="badge manual">需人工复核/不适用</span>
+      <div>T267 · 第 460 行</div>
+      <div>table-row</div>
+      
+      <div>映射：SETUP-DEFAULT</div>
+    </div>
+    <div>
+      <div class="item-text">588000当前价格 | ______</div>
+      <ul class="evidence"><li>估值平台、券商费率、截图或数据存档方式需要交付前人工填写和确认。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="十四、执行前设置与成本附录" data-status="manual">
+    <div class="item-meta">
+      <span class="badge manual">需人工复核/不适用</span>
+      <div>T268 · 第 462 行</div>
+      <div>paragraph</div>
+      
+      <div>映射：SETUP-DEFAULT</div>
+    </div>
+    <div>
+      <div class="item-text">实际买入份额估算：</div>
+      <ul class="evidence"><li>估值平台、券商费率、截图或数据存档方式需要交付前人工填写和确认。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="十四、执行前设置与成本附录" data-status="manual">
+    <div class="item-meta">
+      <span class="badge manual">需人工复核/不适用</span>
+      <div>T269 · 第 466 行</div>
+      <div>table-row</div>
+      
+      <div>映射：SETUP-DEFAULT</div>
+    </div>
+    <div>
+      <div class="item-text">A500单格 | 600 | ___ | ___ | ___ | ___</div>
+      <ul class="evidence"><li>估值平台、券商费率、截图或数据存档方式需要交付前人工填写和确认。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="十四、执行前设置与成本附录" data-status="manual">
+    <div class="item-meta">
+      <span class="badge manual">需人工复核/不适用</span>
+      <div>T270 · 第 467 行</div>
+      <div>table-row</div>
+      
+      <div>映射：SETUP-DEFAULT</div>
+    </div>
+    <div>
+      <div class="item-text">科创50第一笔 | 400 | ___ | ___ | ___ | ___</div>
+      <ul class="evidence"><li>估值平台、券商费率、截图或数据存档方式需要交付前人工填写和确认。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="十四、执行前设置与成本附录" data-status="pass">
+    <div class="item-meta">
+      <span class="badge pass">通过</span>
+      <div>T271 · 第 468 行</div>
+      <div>table-row</div>
+      
+      <div>映射：KC50-SECOND-THIRD-BUY</div>
+    </div>
+    <div>
+      <div class="item-text">科创50第二笔 | 500 | ___ | ___ | ___ | ___</div>
+      <ul class="evidence"><li>src/etf_tracker/strategy.py 按累计买入金额和配置 buy_steps 推进第二、第三笔候选。</li><li>tests/test_phase_two_strategy.py 覆盖已买第一笔触发第二笔、已买前两笔触发第三笔。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="十四、执行前设置与成本附录" data-status="pass">
+    <div class="item-meta">
+      <span class="badge pass">通过</span>
+      <div>T272 · 第 469 行</div>
+      <div>table-row</div>
+      
+      <div>映射：KC50-SECOND-THIRD-BUY</div>
+    </div>
+    <div>
+      <div class="item-text">科创50第三笔 | 500 | ___ | ___ | ___ | ___</div>
+      <ul class="evidence"><li>src/etf_tracker/strategy.py 按累计买入金额和配置 buy_steps 推进第二、第三笔候选。</li><li>tests/test_phase_two_strategy.py 覆盖已买第一笔触发第二笔、已买前两笔触发第三笔。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="十四、执行前设置与成本附录" data-status="pass">
+    <div class="item-meta">
+      <span class="badge pass">通过</span>
+      <div>T273 · 第 470 行</div>
+      <div>table-row</div>
+      
+      <div>映射：KC50-FOURTH-BUY</div>
+    </div>
+    <div>
+      <div class="item-text">科创50第四笔 | 600 | ___ | ___ | ___ | ___</div>
+      <ul class="evidence"><li>src/etf_tracker/strategy.py 第4笔要求已有第三笔、近5日不创新低、站上5日均线且 PE/PB 至少一项低于25%。</li><li>tests/test_phase_two_strategy.py 覆盖第4笔过滤条件通过后的候选。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="十四、执行前设置与成本附录" data-status="manual">
+    <div class="item-meta">
+      <span class="badge manual">需人工复核/不适用</span>
+      <div>T274 · 第 472 行</div>
+      <div>paragraph</div>
+      
+      <div>映射：SETUP-DEFAULT</div>
+    </div>
+    <div>
+      <div class="item-text">手续费侵蚀估算：</div>
+      <ul class="evidence"><li>估值平台、券商费率、截图或数据存档方式需要交付前人工填写和确认。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="十四、执行前设置与成本附录" data-status="manual">
+    <div class="item-meta">
+      <span class="badge manual">需人工复核/不适用</span>
+      <div>T275 · 第 476 行</div>
+      <div>table-row</div>
+      
+      <div>映射：SETUP-DEFAULT</div>
+    </div>
+    <div>
+      <div class="item-text">A500单格，网格收益5.5% | 600 | 33.0 | ___ | ___ | □ 是 □ 否</div>
+      <ul class="evidence"><li>估值平台、券商费率、截图或数据存档方式需要交付前人工填写和确认。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="十四、执行前设置与成本附录" data-status="manual">
+    <div class="item-meta">
+      <span class="badge manual">需人工复核/不适用</span>
+      <div>T276 · 第 477 行</div>
+      <div>table-row</div>
+      
+      <div>映射：SETUP-DEFAULT</div>
+    </div>
+    <div>
+      <div class="item-text">A500单格，网格收益6.0% | 600 | 36.0 | ___ | ___ | □ 是 □ 否</div>
+      <ul class="evidence"><li>估值平台、券商费率、截图或数据存档方式需要交付前人工填写和确认。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="十四、执行前设置与成本附录" data-status="manual">
+    <div class="item-meta">
+      <span class="badge manual">需人工复核/不适用</span>
+      <div>T277 · 第 478 行</div>
+      <div>table-row</div>
+      
+      <div>映射：SETUP-DEFAULT</div>
+    </div>
+    <div>
+      <div class="item-text">科创50小额止盈 | ___ | ___ | ___ | ___ | □ 是 □ 否</div>
+      <ul class="evidence"><li>估值平台、券商费率、截图或数据存档方式需要交付前人工填写和确认。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="十四、执行前设置与成本附录" data-status="manual">
+    <div class="item-meta">
+      <span class="badge manual">需人工复核/不适用</span>
+      <div>T278 · 第 480 行</div>
+      <div>paragraph</div>
+      
+      <div>映射：SETUP-DEFAULT</div>
+    </div>
+    <div>
+      <div class="item-text">本策略按场内ETF佣金万分之一、免五估算交易成本。若实际券商费率高于该水平，或存在单笔最低佣金且显著侵蚀单格收益，应优先考虑提高单格金额、扩大网格间距，或减少交易频率。</div>
+      <ul class="evidence"><li>估值平台、券商费率、截图或数据存档方式需要交付前人工填写和确认。</li></ul>
+      
+    </div>
+  </article>
+<div class="section-title">十五、最终执行摘要</div>
+<article class="item-card" data-item-card data-section="十五、最终执行摘要" data-status="pass">
+    <div class="item-meta">
+      <span class="badge pass">通过</span>
+      <div>T279 · 第 484 行</div>
+      <div>bullet</div>
+      
+      <div>映射：CAPITAL-10000</div>
+    </div>
+    <div>
+      <div class="item-text">总资金10000元，A500常规网格池5000元，科创50波段池2000元，全局备用金3000元。</div>
+      <ul class="evidence"><li>config.example.json 配置 total_capital=10000。</li><li>tests/test_strategy.py 的配置夹具按 10000 元构造。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="十五、最终执行摘要" data-status="pass">
+    <div class="item-meta">
+      <span class="badge pass">通过</span>
+      <div>T280 · 第 485 行</div>
+      <div>bullet</div>
+      
+      <div>映射：A500-SYMBOL</div>
+    </div>
+    <div>
+      <div class="item-text">正式执行标的为563360华泰柏瑞中证A500ETF和588000华夏上证科创板50成份ETF。</div>
+      <ul class="evidence"><li>config.example.json 固定 A500 code=563360。</li><li>tests/test_market.py 覆盖 563360 的交易所前缀和行情源参数。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="十五、最终执行摘要" data-status="pass">
+    <div class="item-meta">
+      <span class="badge pass">通过</span>
+      <div>T281 · 第 486 行</div>
+      <div>bullet</div>
+      
+      <div>映射：RESERVE-SAFETY-CUSHION</div>
+    </div>
+    <div>
+      <div class="item-text">全局备用金任一时点最多动用2000元，至少保留1000元心理安全垫。</div>
+      <ul class="evidence"><li>src/etf_tracker/strategy.py 输出备用金未回收动用和安全垫状态，超过2000元或低于1000元时给出 WARN。</li><li>tests/test_strategy.py 覆盖备用金安全垫不足时阻断提醒。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="十五、最终执行摘要" data-status="pass">
+    <div class="item-meta">
+      <span class="badge pass">通过</span>
+      <div>T282 · 第 487 行</div>
+      <div>bullet</div>
+      
+      <div>映射：A500-GRID-SPACING-MISMATCH</div>
+    </div>
+    <div>
+      <div class="item-text">A500底仓固定1000元，普通网格每格600元，网格间距建议5.5%-6%。</div>
+      <ul class="evidence"><li>config.example.json 将 A500 grid_spacing 更新为 5.5%。</li><li>src/etf_tracker/strategy.py 实际网格默认使用 5.5%，tests/test_phase_two_strategy.py 覆盖默认间距。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="十五、最终执行摘要" data-status="pass">
+    <div class="item-meta">
+      <span class="badge pass">通过</span>
+      <div>T283 · 第 488 行</div>
+      <div>bullet</div>
+      
+      <div>映射：PHASE4-105-A500-GRID-ARCHIVE</div>
+    </div>
+    <div>
+      <div class="item-text">A500跌破网格下沿后，暂停普通网格补仓；备用金只在极端条件下人工复核使用。</div>
+      <ul class="evidence"><li>src/etf_tracker/strategy.py 输出 A500 实际/建议网格基准、上下沿、间距、开放网格和跌破下沿暂停。</li><li>tests/test_strategy.py 与 tests/test_phase_two_strategy.py 覆盖 A500 基准、5.5% 间距、普通补仓、配对卖出、下沿暂停和上沿提醒。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="十五、最终执行摘要" data-status="pass">
+    <div class="item-meta">
+      <span class="badge pass">通过</span>
+      <div>T284 · 第 489 行</div>
+      <div>bullet</div>
+      
+      <div>映射：PHASE4-106-A500-RESERVE-LIMITS</div>
+    </div>
+    <div>
+      <div class="item-text">A500备用金每次最多1000元，单独记录，不混入普通网格。</div>
+      <ul class="evidence"><li>src/etf_tracker/strategy.py 只把 A500 备用金作为人工复核候选，并检查估值、20日间隔、1000元单份和 8%/12% 边界。</li><li>tests/test_phase_two_strategy.py 覆盖 A/B/C 备用金候选、估值要求、间隔和备用金仓位边界。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="十五、最终执行摘要" data-status="manual">
+    <div class="item-meta">
+      <span class="badge manual">需人工复核/不适用</span>
+      <div>T285 · 第 490 行</div>
+      <div>bullet</div>
+      
+      <div>映射：PHASE4-107-MANUAL-REVIEW-BOUNDARY</div>
+    </div>
+    <div>
+      <div class="item-text">A500机动资金仅用于份额误差、滑点处理和经记录的季度复核调整，不得绕过硬规则加仓。</div>
+      <ul class="evidence"><li>季度复核、估值平台选择、截图存档、策略有效性最终判断和跨池例外属于人工复核边界，系统只展示证据和提醒。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="十五、最终执行摘要" data-status="pass">
+    <div class="item-meta">
+      <span class="badge pass">通过</span>
+      <div>T286 · 第 491 行</div>
+      <div>bullet</div>
+      
+      <div>映射：PHASE4-108-KC50-BUY-STEPS</div>
+    </div>
+    <div>
+      <div class="item-text">科创50按22%、30%、38%、45%回撤分4笔买入，对应金额400、500、500、600元。</div>
+      <ul class="evidence"><li>src/etf_tracker/strategy.py 使用近252日高点回撤、已买金额、估值和第4笔过滤条件推导科创50四笔买入候选。</li><li>tests/test_strategy.py 与 tests/test_phase_two_strategy.py 覆盖第一笔触发、第二/第三笔、估值延后、第4笔过滤和买入阶段推进。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="十五、最终执行摘要" data-status="pass">
+    <div class="item-meta">
+      <span class="badge pass">通过</span>
+      <div>T287 · 第 492 行</div>
+      <div>bullet</div>
+      
+      <div>映射：KC50-FIRST-BUY</div>
+    </div>
+    <div>
+      <div class="item-text">科创50第一笔22%回撤触发时，若估值仍高于历史50%分位，则延后至25%回撤或估值回落后再买入。</div>
+      <ul class="evidence"><li>src/etf_tracker/strategy.py 根据近 252 日高点回撤识别第一笔。</li><li>tests/test_strategy.py 覆盖第一笔触发和未触发提示。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="十五、最终执行摘要" data-status="pass">
+    <div class="item-meta">
+      <span class="badge pass">通过</span>
+      <div>T288 · 第 493 行</div>
+      <div>bullet</div>
+      
+      <div>映射：KC50-FOURTH-BUY</div>
+    </div>
+    <div>
+      <div class="item-text">科创50第4笔必须满足止跌过滤条件，不因达到45%回撤而机械买入。</div>
+      <ul class="evidence"><li>src/etf_tracker/strategy.py 第4笔要求已有第三笔、近5日不创新低、站上5日均线且 PE/PB 至少一项低于25%。</li><li>tests/test_phase_two_strategy.py 覆盖第4笔过滤条件通过后的候选。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="十五、最终执行摘要" data-status="pass">
+    <div class="item-meta">
+      <span class="badge pass">通过</span>
+      <div>T289 · 第 494 行</div>
+      <div>bullet</div>
+      
+      <div>映射：KC50-TRAILING-PROFIT</div>
+    </div>
+    <div>
+      <div class="item-text">科创50止盈为15%卖1/3，30%再卖1/3，剩余1/3执行移动止盈；移动止盈默认回撤12%，高波动阶段放宽至13%。</div>
+      <ul class="evidence"><li>src/etf_tracker/strategy.py 第二次止盈后追踪阶段高点，按12%/13%回撤或连续2日跌破10日均线提示移动止盈。</li><li>tests/test_phase_two_strategy.py 覆盖移动止盈触发和 S2 高波动13%阈值。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="十五、最终执行摘要" data-status="pass">
+    <div class="item-meta">
+      <span class="badge pass">通过</span>
+      <div>T290 · 第 495 行</div>
+      <div>bullet</div>
+      
+      <div>映射：KC50-NET-1700</div>
+    </div>
+    <div>
+      <div class="item-text">科创50波段账户净值低于1700元停止新增买入，低于1500元减仓1/2，低于1400元清仓。</div>
+      <ul class="evidence"><li>src/etf_tracker/strategy.py 在科创50波段净值低于1700时停止新增买入并阻断候选。</li><li>tests/test_phase_two_strategy.py 覆盖低于1700时将新增买入候选转为禁止。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="十五、最终执行摘要" data-status="pass">
+    <div class="item-meta">
+      <span class="badge pass">通过</span>
+      <div>T291 · 第 496 行</div>
+      <div>bullet</div>
+      
+      <div>映射：H3-NET-VALUE</div>
+    </div>
+    <div>
+      <div class="item-text">H3减仓1/2后，即使净值回升至1500元以上，恢复新增买入仍须满足1800元以上并维持5个交易日。</div>
+      <ul class="evidence"><li>src/etf_tracker/strategy.py 覆盖1700/1500/1400三档H3净值信号。</li><li>tests/test_strategy.py 覆盖低于1500减仓和低于1400清仓优先级。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="十五、最终执行摘要" data-status="pass">
+    <div class="item-meta">
+      <span class="badge pass">通过</span>
+      <div>T292 · 第 497 行</div>
+      <div>bullet</div>
+      
+      <div>映射：PHASE4-109-H1-RISK-GATE</div>
+    </div>
+    <div>
+      <div class="item-text">总投入成本达到70%后启用风险闸门，达到85%后禁止新增买入。</div>
+      <ul class="evidence"><li>src/etf_tracker/strategy.py 在 70%-85% 投入区间计算 H1 两项硬条件、三项参考条件和新增买入允许结论。</li><li>tests/test_strategy.py 覆盖 H1 全通过、参考条件不足、双标的同时弱势、估值缺失和 85% 绝对上限。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="十五、最终执行摘要" data-status="pass">
+    <div class="item-meta">
+      <span class="badge pass">通过</span>
+      <div>T293 · 第 498 行</div>
+      <div>bullet</div>
+      
+      <div>映射：PHASE4-110-S1-CORRELATION</div>
+    </div>
+    <div>
+      <div class="item-text">当A500与科创50过去20日相关系数大于0.85时，双标的合计单日新增买入金额不超过800元。</div>
+      <ul class="evidence"><li>src/etf_tracker/strategy.py 根据 20日相关系数执行 S1 同日新增买入限额，并根据 20日年化波动率执行 S2 移动止盈阈值。</li><li>tests/test_phase_two_strategy.py 覆盖 S1 800元限额与 A500 优先，以及 S2 高波动 13% 阈值。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="十五、最终执行摘要" data-status="pass">
+    <div class="item-meta">
+      <span class="badge pass">通过</span>
+      <div>T294 · 第 499 行</div>
+      <div>bullet</div>
+      
+      <div>映射：PHASE4-111-S1-CORRELATION</div>
+    </div>
+    <div>
+      <div class="item-text">S1延后复核当日可直接执行，不再顺延至T+3；800元限制按计划下单金额计算，且延后执行日仍需按当日S1状态判断限额。</div>
+      <ul class="evidence"><li>src/etf_tracker/strategy.py 根据 20日相关系数执行 S1 同日新增买入限额，并根据 20日年化波动率执行 S2 移动止盈阈值。</li><li>tests/test_phase_two_strategy.py 覆盖 S1 800元限额与 A500 优先，以及 S2 高波动 13% 阈值。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="十五、最终执行摘要" data-status="pass">
+    <div class="item-meta">
+      <span class="badge pass">通过</span>
+      <div>T295 · 第 500 行</div>
+      <div>bullet</div>
+      
+      <div>映射：KC50-VALUATION-CROSS</div>
+    </div>
+    <div>
+      <div class="item-text">科创50估值交叉验证以信号确认日收盘后数据为准；若次日查询，必须确认数据对应信号确认日。</div>
+      <ul class="evidence"><li>src/etf_tracker/strategy.py 使用手工估值分位判断第一笔22%触发时是否延后，并允许25%回撤重新触发。</li><li>tests/test_phase_two_strategy.py 覆盖估值高于50%延后和更深回撤触发。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="十五、最终执行摘要" data-status="pass">
+    <div class="item-meta">
+      <span class="badge pass">通过</span>
+      <div>T296 · 第 501 行</div>
+      <div>bullet</div>
+      
+      <div>映射：PHASE4-112-LIFECYCLE-LONG-TERM-RISK</div>
+    </div>
+    <div>
+      <div class="item-text">清仓后至少等待5个交易日，并重新锁定所有关键参数后方可重启。</div>
+      <ul class="evidence"><li>src/etf_tracker/strategy.py 从成交记录和行情推导 H6 清仓冷却、重启试探仓、H7 连续3笔10日浮亏和长期失效状态。</li><li>tests/test_phase_three_strategy.py 覆盖 H6 第4/第5交易日、重锁指标、试探仓上限、H7、最大回撤、H3轮次和 A500 网格90日空转。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="十五、最终执行摘要" data-status="manual">
+    <div class="item-meta">
+      <span class="badge manual">需人工复核/不适用</span>
+      <div>T297 · 第 502 行</div>
+      <div>bullet</div>
+      
+      <div>映射：PHASE4-113-MANUAL-REVIEW-BOUNDARY</div>
+    </div>
+    <div>
+      <div class="item-text">参考指引必须设定复核频率，避免因“可裁量”而被遗忘。</div>
+      <ul class="evidence"><li>季度复核、估值平台选择、截图存档、策略有效性最终判断和跨池例外属于人工复核边界，系统只展示证据和提醒。</li></ul>
+      
+    </div>
+  </article>
+<article class="item-card" data-item-card data-section="十五、最终执行摘要" data-status="manual">
+    <div class="item-meta">
+      <span class="badge manual">需人工复核/不适用</span>
+      <div>T298 · 第 504 行</div>
+      <div>paragraph</div>
+      
+      <div>映射：PHASE4-114-SECURITY-NO-AUTO-TRADE</div>
+    </div>
+    <div>
+      <div class="item-text">风险提示：本策略仅为规则化交易方案整理，不保证盈利，也不构成任何投资建议。ETF价格波动、流动性、手续费、跟踪误差、估值数据口径和个人执行纪律均可能影响实际结果。</div>
+      <ul class="evidence"><li>README.md、src/etf_tracker/report.py 和报告文案明确本项目只做记录、复盘和提醒。</li><li>项目中没有券商登录、券商 API 或自动下单接口。</li></ul>
+      
+    </div>
+  </article>
+        </div>
+      </section>
+    </main>
+    <script>
+      const sectionFilter = document.getElementById("section-filter");
+      const searchFilter = document.getElementById("search-filter");
+      const statusButtons = Array.from(document.querySelectorAll("[data-status-filter]"));
+      const cards = Array.from(document.querySelectorAll("[data-item-card]"));
+      let currentStatus = "";
+
+      function applyFilters() {
+        const section = sectionFilter.value;
+        const query = searchFilter.value.trim().toLowerCase();
+        for (const card of cards) {
+          const sectionMatches = !section || card.dataset.section === section;
+          const statusMatches = !currentStatus || card.dataset.status === currentStatus;
+          const queryMatches = !query || card.textContent.toLowerCase().includes(query);
+          card.classList.toggle("hidden", !(sectionMatches && statusMatches && queryMatches));
+        }
+      }
+
+      sectionFilter.addEventListener("change", applyFilters);
+      searchFilter.addEventListener("input", applyFilters);
+      statusButtons.forEach((button) => {
+        button.addEventListener("click", () => {
+          currentStatus = button.dataset.statusFilter;
+          statusButtons.forEach((item) => item.setAttribute("aria-pressed", String(item === button)));
+          applyFilters();
+        });
+      });
+    </script>
+  </body>
+</html>

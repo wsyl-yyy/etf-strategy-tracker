@@ -14,13 +14,20 @@ from .models import Trade
 
 FIELD_ALIASES = {
     "date": ["日期", "信号确认日", "成交日期", "Timestamp", "date"],
+    "signal_date": ["信号确认日", "signal_date"],
+    "execution_date": ["实际执行日", "执行日期", "execution_date"],
     "symbol": ["标的", "代码", "ETF代码", "symbol"],
     "side": ["方向", "买卖方向", "买入/卖出", "side"],
     "module": ["策略模块", "模块", "module"],
+    "trigger_rule": ["触发规则", "trigger_rule"],
     "price": ["成交价", "执行价格", "price"],
     "amount": ["成交金额", "执行金额", "金额", "amount"],
     "shares": ["成交份额", "执行份额", "份额", "shares"],
     "fee": ["交易费用", "费用", "交易成本", "fee"],
+    "cash_balance": ["现金余额", "cash_balance"],
+    "risk_gate_triggered": ["是否触发风险闸门", "risk_gate_triggered"],
+    "risk_gate_snapshot": ["风险闸门快照", "risk_gate_snapshot"],
+    "compliance_warnings": ["合规警告", "compliance_warnings"],
     "note": ["备注", "复盘备注", "note"],
 }
 
@@ -114,8 +121,9 @@ def _load_csv_trades(path: str | Path) -> list[Trade]:
 
 def _row_to_trade(row: dict[str, Any], headers: list[str]) -> Trade:
     mapped = {field: _read_alias(row, headers, aliases) for field, aliases in FIELD_ALIASES.items()}
+    trade_date = _parse_date(mapped["date"] or mapped["execution_date"] or mapped["signal_date"])
     return Trade(
-        date=_parse_date(mapped["date"]),
+        date=trade_date,
         symbol=_normalize_symbol(mapped["symbol"]),
         side=str(mapped["side"]).strip(),
         module=str(mapped.get("module") or "").strip(),
@@ -124,6 +132,13 @@ def _row_to_trade(row: dict[str, Any], headers: list[str]) -> Trade:
         shares=_to_float(mapped["shares"]),
         fee=_to_float(mapped.get("fee") or 0),
         note=str(mapped.get("note") or "").strip(),
+        signal_date=_parse_optional_date(mapped.get("signal_date")) or trade_date,
+        execution_date=_parse_optional_date(mapped.get("execution_date")) or trade_date,
+        trigger_rule=str(mapped.get("trigger_rule") or "").strip(),
+        cash_balance=_to_optional_float(mapped.get("cash_balance")),
+        risk_gate_triggered=_to_bool(mapped.get("risk_gate_triggered")),
+        risk_gate_snapshot=str(mapped.get("risk_gate_snapshot") or "").strip(),
+        compliance_warnings=_to_list(mapped.get("compliance_warnings")),
     )
 
 
@@ -150,6 +165,12 @@ def _parse_date(value: Any) -> date:
     raise ValueError(f"无法解析成交日期: {value!r}")
 
 
+def _parse_optional_date(value: Any) -> date | None:
+    if value is None or str(value).strip() == "":
+        return None
+    return _parse_date(value)
+
+
 def _normalize_symbol(value: Any) -> str:
     text = str(value).strip()
     if "." in text:
@@ -161,3 +182,27 @@ def _to_float(value: Any) -> float:
     if value is None or str(value).strip() == "":
         return 0.0
     return float(str(value).replace(",", "").strip())
+
+
+def _to_optional_float(value: Any) -> float | None:
+    if value is None or str(value).strip() == "":
+        return None
+    return _to_float(value)
+
+
+def _to_bool(value: Any) -> bool:
+    if isinstance(value, bool):
+        return value
+    text = str(value or "").strip().lower()
+    return text in {"true", "1", "yes", "y", "是", "触发"}
+
+
+def _to_list(value: Any) -> list[str]:
+    if value is None or value == "":
+        return []
+    if isinstance(value, list):
+        return [str(item).strip() for item in value if str(item).strip()]
+    text = str(value).strip()
+    if not text:
+        return []
+    return [item.strip() for item in text.replace("；", ";").split(";") if item.strip()]

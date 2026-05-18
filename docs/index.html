@@ -544,8 +544,12 @@
         <form id="trade-form">
           <div class="grid">
             <label>
-              日期
+              实际执行日
               <input id="trade-date" name="date" type="date" required />
+            </label>
+            <label>
+              信号确认日
+              <input id="trade-signal-date" name="signal_date" type="date" />
             </label>
             <label>
               标的
@@ -564,6 +568,10 @@
               <input id="trade-module" name="module" list="module-list" placeholder="A500网格" />
             </label>
             <label>
+              触发规则
+              <input id="trade-trigger-rule" name="trigger_rule" placeholder="A500第2格补仓" />
+            </label>
+            <label>
               成交价
               <input id="trade-price" name="price" type="number" min="0" step="0.0001" inputmode="decimal" required />
             </label>
@@ -579,9 +587,21 @@
               交易费用
               <input id="trade-fee" name="fee" type="number" min="0" step="0.01" inputmode="decimal" value="0" />
             </label>
+            <label>
+              现金余额
+              <input id="trade-cash-balance" name="cash_balance" type="number" step="0.01" inputmode="decimal" />
+            </label>
+            <label class="checkbox-field">
+              <input id="trade-risk-gate-triggered" name="risk_gate_triggered" type="checkbox" />
+              触发风险闸门
+            </label>
             <label class="full">
               提交密码
               <input id="submit-password" name="submitPassword" type="password" autocomplete="current-password" required />
+            </label>
+            <label class="full">
+              风险闸门快照
+              <textarea id="trade-risk-gate-snapshot" name="risk_gate_snapshot" placeholder="可选"></textarea>
             </label>
             <label class="full">
               备注
@@ -898,6 +918,7 @@
             const keptPassword = submitPasswordInput.value;
             tradeForm.reset();
             document.getElementById("trade-date").value = today;
+            document.getElementById("trade-signal-date").value = "";
             tradeFeeInput.value = "0";
             keepTradeContextCheckbox.checked = keepContext;
             rememberSubmitPasswordCheckbox.checked = rememberPassword;
@@ -1045,6 +1066,12 @@
           const noteHtml = trade.note
             ? `<div class="trade-card-note">备注：${escapeHtml(trade.note)}</div>`
             : "";
+          const triggerHtml = trade.trigger_rule
+            ? `<div class="trade-card-note">触发规则：${escapeHtml(trade.trigger_rule)}</div>`
+            : "";
+          const complianceHtml = Array.isArray(trade.compliance_warnings) && trade.compliance_warnings.length
+            ? `<div class="trade-card-note">合规警告：${trade.compliance_warnings.map(escapeHtml).join("；")}</div>`
+            : "";
           card.innerHTML = `
             <div class="trade-card-header">
               <div>
@@ -1053,19 +1080,26 @@
                   <span class="trade-card-symbol">${escapeHtml(trade.symbol || "")}</span>
                   <span class="trade-card-amount">${formatMoney(Number(trade.amount))} 元</span>
                 </div>
-                <div class="trade-card-meta">${escapeHtml(trade.date || "")}${trade.module ? ` · ${escapeHtml(trade.module)}` : ""}</div>
+                <div class="trade-card-meta">${escapeHtml(trade.execution_date || trade.date || "")}${trade.module ? ` · ${escapeHtml(trade.module)}` : ""}</div>
               </div>
             </div>
+            ${triggerHtml}
+            ${complianceHtml}
             ${noteHtml}
             <div class="grid">
-              <label>日期<input data-field="date" type="date" value="${attr(trade.date)}" required /></label>
+              <label>实际执行日<input data-field="date" type="date" value="${attr(trade.execution_date || trade.date)}" required /></label>
+              <label>信号确认日<input data-field="signal_date" type="date" value="${attr(trade.signal_date || trade.date)}" /></label>
               <label>标的<input data-field="symbol" inputmode="numeric" value="${attr(trade.symbol)}" required /></label>
               <label>方向<select data-field="side"><option value="买入">买入</option><option value="卖出">卖出</option></select></label>
               <label>策略模块<input data-field="module" value="${attr(trade.module)}" /></label>
+              <label>触发规则<input data-field="trigger_rule" value="${attr(trade.trigger_rule)}" /></label>
               <label>成交价<input data-field="price" type="number" min="0" step="0.0001" inputmode="decimal" value="${attr(trade.price)}" required /></label>
               <label>成交金额<input data-field="amount" type="number" min="0" step="0.01" inputmode="decimal" value="${attr(trade.amount)}" required /></label>
               <label>成交份额<input data-field="shares" type="number" min="0" step="0.01" inputmode="decimal" value="${attr(trade.shares)}" required /></label>
               <label>交易费用<input data-field="fee" type="number" min="0" step="0.01" inputmode="decimal" value="${attr(trade.fee || 0)}" /></label>
+              <label>现金余额<input data-field="cash_balance" type="number" step="0.01" inputmode="decimal" value="${attr(trade.cash_balance ?? "")}" /></label>
+              <label class="checkbox-field"><input data-field="risk_gate_triggered" type="checkbox" ${trade.risk_gate_triggered ? "checked" : ""} />触发风险闸门</label>
+              <label class="full">风险闸门快照<textarea data-field="risk_gate_snapshot">${escapeHtml(trade.risk_gate_snapshot || "")}</textarea></label>
               <label class="full">备注<textarea data-field="note">${escapeHtml(trade.note || "")}</textarea></label>
             </div>
             <div class="actions">
@@ -1147,13 +1181,19 @@
         return {
           submitPassword: submitPasswordInput.value,
           date: document.getElementById("trade-date").value,
+          signal_date: document.getElementById("trade-signal-date").value,
+          execution_date: document.getElementById("trade-date").value,
           symbol: tradeSymbolInput.value.trim(),
           side: tradeSideInput.value,
           module: tradeModuleInput.value.trim(),
+          trigger_rule: document.getElementById("trade-trigger-rule").value.trim(),
           price: numberValue("trade-price"),
           amount: numberValue("trade-amount"),
           shares: numberValue("trade-shares"),
           fee: numberValue("trade-fee"),
+          cash_balance: optionalNumberValue("trade-cash-balance"),
+          risk_gate_triggered: document.getElementById("trade-risk-gate-triggered").checked,
+          risk_gate_snapshot: document.getElementById("trade-risk-gate-snapshot").value.trim(),
           note: document.getElementById("trade-note").value.trim(),
         };
       }
@@ -1161,13 +1201,19 @@
       function collectCardTrade(card) {
         return {
           date: card.querySelector('[data-field="date"]').value,
+          signal_date: card.querySelector('[data-field="signal_date"]').value,
+          execution_date: card.querySelector('[data-field="date"]').value,
           symbol: card.querySelector('[data-field="symbol"]').value.trim(),
           side: card.querySelector('[data-field="side"]').value,
           module: card.querySelector('[data-field="module"]').value.trim(),
+          trigger_rule: card.querySelector('[data-field="trigger_rule"]').value.trim(),
           price: Number(card.querySelector('[data-field="price"]').value),
           amount: Number(card.querySelector('[data-field="amount"]').value),
           shares: Number(card.querySelector('[data-field="shares"]').value),
           fee: Number(card.querySelector('[data-field="fee"]').value || 0),
+          cash_balance: optionalCardNumberValue(card, "cash_balance"),
+          risk_gate_triggered: card.querySelector('[data-field="risk_gate_triggered"]').checked,
+          risk_gate_snapshot: card.querySelector('[data-field="risk_gate_snapshot"]').value.trim(),
           note: card.querySelector('[data-field="note"]').value.trim(),
         };
       }
@@ -1175,6 +1221,16 @@
       function numberValue(id) {
         const value = document.getElementById(id).value;
         return value === "" ? 0 : Number(value);
+      }
+
+      function optionalNumberValue(id) {
+        const value = document.getElementById(id).value;
+        return value === "" ? null : Number(value);
+      }
+
+      function optionalCardNumberValue(card, field) {
+        const value = card.querySelector(`[data-field="${field}"]`).value;
+        return value === "" ? null : Number(value);
       }
 
       function formatMoney(value) {
