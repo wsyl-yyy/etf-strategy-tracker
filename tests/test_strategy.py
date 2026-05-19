@@ -1,13 +1,13 @@
 from __future__ import annotations
 
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 
 import pytest
 
 from etf_tracker.config import TrackerConfig
 from etf_tracker.models import PriceBar, Trade
 from etf_tracker.portfolio import build_portfolio
-from etf_tracker.strategy import evaluate
+from etf_tracker.strategy import _expected_market_date, evaluate
 
 
 def test_kc50_h3_signal_when_net_value_below_1500() -> None:
@@ -400,6 +400,16 @@ def test_h4_single_day_drop_over_8_percent_warns() -> None:
     report = evaluate(config, portfolio, {"563360": _flat_bars(1.0), "588000": kc50})
 
     assert any(signal.title == "科创50单日收盘跌幅超过8%" for signal in report.signals)
+
+
+def test_expected_market_date_waits_until_after_market_refresh() -> None:
+    assert _expected_market_date(datetime(2026, 5, 19, 1, 35)) == date(2026, 5, 18)
+    assert _expected_market_date(datetime(2026, 5, 19, 16, 20)) == date(2026, 5, 19)
+
+
+def test_expected_market_date_skips_weekends() -> None:
+    assert _expected_market_date(datetime(2026, 5, 18, 1, 35)) == date(2026, 5, 15)
+    assert _expected_market_date(datetime(2026, 5, 17, 22, 20)) == date(2026, 5, 15)
 
 
 def _config() -> TrackerConfig:

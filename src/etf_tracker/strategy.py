@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 import re
 from zoneinfo import ZoneInfo
 
@@ -87,9 +87,9 @@ def evaluate(
     warnings.append(valuation_status())
 
     if latest_date is not None:
-        today_cn = datetime.now(ZoneInfo(config.raw.get("timezone", "Asia/Shanghai"))).date()
-        if latest_date < today_cn:
-            warnings.append(f"行情最新日期为 {latest_date}，不是今天；若今天是交易日，请等待数据源更新。")
+        expected_date = _expected_market_date(datetime.now(ZoneInfo(config.raw.get("timezone", "Asia/Shanghai"))))
+        if latest_date < expected_date:
+            warnings.append(f"行情最新日期为 {latest_date}，落后于应有行情日期 {expected_date}；若最近交易日休市，请人工复核。")
 
     if not signals:
         if not a500 or not kc50:
@@ -1458,3 +1458,16 @@ def _latest_common_date(a: list[PriceBar], b: list[PriceBar]) -> date | None:
     if b:
         return b[-1].date
     return None
+
+
+def _expected_market_date(now: datetime) -> date:
+    candidate = now.date()
+    if candidate.weekday() >= 5 or now.hour < 16:
+        candidate -= timedelta(days=1)
+    return _previous_weekday(candidate)
+
+
+def _previous_weekday(value: date) -> date:
+    while value.weekday() >= 5:
+        value -= timedelta(days=1)
+    return value
