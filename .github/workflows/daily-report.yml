@@ -12,7 +12,8 @@ on:
     branches:
       - main
   schedule:
-    - cron: "10 8 * * 1-5"
+    # Beijing time: 16:20, 18:20, 20:20, 22:20 on weekdays.
+    - cron: "20 8,10,12,14 * * 1-5"
 
 permissions:
   contents: write

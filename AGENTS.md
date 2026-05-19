@@ -77,13 +77,13 @@ $env:PYTHONPATH='src'
 .\.venv\Scripts\python -m pytest
 ```
 
-If `.venv` reports `No Python`, verify the host interpreter path before treating Python verification as blocked. The local fallback interpreter may be available at:
+If `.venv` reports `No Python`, verify the host interpreter path before treating Python verification as blocked. Check `where.exe python` and `py -0p`; an older local fallback path may be:
 
 ```powershell
 & 'C:\Users\berna\AppData\Local\Programs\Python\Python311\python.exe' -m pytest
 ```
 
-Recreate `.venv` afterward if its stored absolute interpreter path is stale. In sandboxed sessions, running the host interpreter may require approval; do not mark Python tests as unverified until the fallback path has been tried or explicitly blocked.
+Recreate `.venv` afterward if its stored absolute interpreter path is stale. In sandboxed sessions, running the host interpreter may require approval; do not mark Python tests as unverified until available host interpreters have been checked or dependency installation is explicitly blocked.
 
 Generate a local encrypted report:
 
@@ -195,8 +195,9 @@ Never write actual secret values into tracked files.
 ## Operational Notes
 
 - The web page does not actively notify users. It shows the latest encrypted report when opened and decrypted.
-- GitHub Actions schedule is `10 8 * * 1-5`, which is 16:10 Asia/Shanghai on weekdays.
-- GitHub Actions schedules may be delayed by GitHub; rely on the report update time shown in the page.
+- GitHub Actions schedule is `20 8,10,12,14 * * 1-5`, which is 16:20, 18:20, 20:20, and 22:20 Asia/Shanghai on weekdays.
+- Multiple weekday schedules are intentional because GitHub Actions schedules may be delayed; any successful run overwrites the Pages report, so rely on the report update time shown in the page.
+- Report stale-market warnings compare the latest market bar to the expected market date, not simply to the current calendar date. Before 16:00 Asia/Shanghai and on weekends, the expected date falls back to the previous weekday; market holidays still require manual review.
 - Trade submit/edit/delete triggers a new GitHub Actions run through Cloudflare Worker.
 - If a trade is deleted directly from KV, Actions is not triggered automatically; manually run the workflow or push an empty commit to refresh Pages.
 - If Worker reports a dispatch failure after saving a trade, do not resubmit blindly; the trade may already be stored. Check KV/trade management first.
